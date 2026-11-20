@@ -45,6 +45,14 @@ Z.forEach((z) => (ZONE_PLANES[z.key] = new THREE.Plane(new THREE.Vector3(z.dx, 0
 export const zoneReveal = {};
 
 // t: 0 = all drawing, 1 = all material
+// a copy of an inked material that takes a baked lightmap
+export function withLightmap(mat, lightMap, intensity) {
+  const m = inkify(mat.clone(), mat.userData.ink);
+  m.lightMap = lightMap;
+  m.lightMapIntensity = intensity;
+  return m;
+}
+
 export function setZoneReveal(key, t) {
   const i = Z.findIndex((z) => z.key === key);
   const z = Z[i];
@@ -103,6 +111,7 @@ const FRAG_TAIL = /* glsl */ `
 `;
 
 function inkify(mat, { glassInk = 1, thin = false } = {}) {
+  mat.userData.ink = { glassInk, thin };
   mat.side = THREE.DoubleSide;
   mat.clippingPlanes = [CUT];
   mat.polygonOffset = true; // keep faces a hair behind their ink lines
@@ -110,6 +119,8 @@ function inkify(mat, { glassInk = 1, thin = false } = {}) {
   mat.polygonOffsetUnits = 1;
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U, { uGlassInk: { value: glassInk }, uPoche: { value: thin ? 0 : 1 } });
+    // with baked light, the environment gives reflections only: the lightmap already holds the diffuse light
+    if (mat.lightMap) sh.fragmentShader = sh.fragmentShader.replace('#include <lights_fragment_maps>', THREE.ShaderChunk.lights_fragment_maps.replace('iblIrradiance += getIBLIrradiance( geometryNormal );', ''));
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vWp;\nvarying vec3 vWn;')
       .replace(
@@ -120,7 +131,7 @@ function inkify(mat, { glassInk = 1, thin = false } = {}) {
       .replace('#include <common>', '#include <common>\n' + FRAG_HEAD)
       .replace('#include <dithering_fragment>', '#include <dithering_fragment>\n' + FRAG_TAIL);
   };
-  mat.customProgramCacheKey = () => 'ink' + glassInk + (thin ? 't' : 's');
+  mat.customProgramCacheKey = () => 'ink' + glassInk + (thin ? 't' : 's') + (mat.lightMap ? 'L' : '');
   return mat;
 }
 
@@ -202,6 +213,7 @@ export function makeMaterials(T, P) {
     ),
     // soft things and objects
     velvet: inkify(new THREE.MeshPhysicalMaterial({ color: '#1c2b55', roughness: 0.75, sheen: 1, sheenColor: new THREE.Color('#6d86c9'), sheenRoughness: 0.5 })),
+    drape: inkify(new THREE.MeshPhysicalMaterial({ color: '#1a2850', roughness: 0.8, sheen: 1, sheenColor: new THREE.Color('#5d76b8'), sheenRoughness: 0.45 }), { thin: true }),
     porcelain: std({ color: '#f1efe9', roughness: 0.2, envMapIntensity: 1.2 }),
     clay: std({ color: '#a8673f', roughness: 0.85 }),
     ceramic: std({ color: '#244a6b', roughness: 0.25 }),

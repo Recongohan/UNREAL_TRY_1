@@ -2,6 +2,7 @@
 //
 //   node tools/shoot.mjs stills OUT_DIR [s1 s2 ...]     one PNG per position
 //   node tools/shoot.mjs video OUT.mp4 [seconds] [fps]  a full scroll, frame by frame
+//   node tools/shoot.mjs export OUT.json                 geometry and lights for tools/bake.py (use Q=nobake)
 //
 // Options through the environment: W, H (viewport), DPR.
 // The page runs with ?capture, which turns off smoothing and exposes
@@ -36,7 +37,7 @@ const server = createServer(async (req, res) => {
   }
 });
 await new Promise((r) => server.listen(0, r));
-const url = `http://localhost:${server.address().port}/index.html?capture`;
+const url = `http://localhost:${server.address().port}/index.html?capture${process.env.Q ? "&" + process.env.Q : ""}`;
 
 const [mode = 'stills', out = 'shots', ...rest] = process.argv.slice(2);
 const W = +(process.env.W || 1280), H = +(process.env.H || 720), DPR = +(process.env.DPR || 1);
@@ -49,7 +50,13 @@ await page.waitForFunction(() => window.__ready || (window.__errors && window.__
 const errs = await page.evaluate(() => window.__errors);
 if (errs.length) console.log('errors:', errs);
 
-if (mode === 'stills') {
+if (mode === 'export') {
+  // the geometry and lights, for tools/bake.py
+  const data = await page.evaluate(() => JSON.stringify(window.__bakeData()));
+  const { writeFile } = await import('fs/promises');
+  await writeFile(out, data);
+  console.log('wrote', out, (data.length / 1e6).toFixed(1), 'MB');
+} else if (mode === 'stills') {
   await mkdir(out, { recursive: true });
   const list = rest.length ? rest.map(Number) : [0, 0.12, 0.25, 0.4, 0.5, 0.56, 0.66, 0.76, 0.86, 1];
   for (const s of list) {
@@ -67,7 +74,8 @@ if (mode === 'stills') {
   const N = Math.round(seconds * fps);
   // scroll speed through the page: linger on the sheet, then a steady walk
   const ease = (u) => {
-    const keys = [[0, 0], [0.07, 0.0], [0.18, 0.06], [0.5, 0.42], [0.62, 0.58], [0.72, 0.64], [0.95, 1], [1, 1]];
+    // (share of the video, scroll progress): hold the sheet, rise, land, pause at the door, foyer, dining
+    const keys = [[0, 0], [0.06, 0], [0.16, 0.04], [0.36, 0.26], [0.45, 0.385], [0.51, 0.43], [0.69, 0.69], [0.74, 0.705], [0.97, 1], [1, 1]];
     for (let i = 1; i < keys.length; i++) if (u <= keys[i][0]) {
       const t = (u - keys[i - 1][0]) / (keys[i][0] - keys[i - 1][0]);
       const e = t * t * (3 - 2 * t);

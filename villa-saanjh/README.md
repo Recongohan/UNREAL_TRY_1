@@ -4,7 +4,7 @@ A scroll-driven landing page. It opens on a printed ground-floor plan. On scroll
 
 The plan is not a picture: it is the 3D model, cut at 1.2 m and seen from straight above through a 1.6° lens.
 
-**Status: checkpoint 1.** The sheet, the walls rising, the entry, and the walk into the double-height foyer. The dining room beyond is still ink.
+**Status: checkpoint 2.** The sheet, the walls rising, the entry, the double-height foyer and the dining room, lit by light baked in Blender Cycles. The pool beyond the French doors is still ink.
 
 ## Run it
 
@@ -25,6 +25,22 @@ node tools/shoot.mjs video media/walk.mp4 14 24  # full scroll, frame by frame
 
 `?capture` on the URL turns off smoothing and exposes `window.__frame(s)`.
 
+## Baked light (Blender)
+
+The page builds the geometry; Blender lights it. `tools/shoot.mjs export` writes the meshes and lamps to JSON, and `tools/bake.py` (run with Blender's Python, the `bpy` module) rebuilds them with physically based materials, a sky, the late sun and every lamp, then bakes one lightmap per walked zone with Cycles, denoises it with OIDN, renders a 360 reflection probe per zone and exports `room.glb` with lightmap UVs. The page loads `bake/` when it exists (`?nobake` shows the real-time version).
+
+```bash
+python3.13 -m venv .venv-bpy && .venv-bpy/bin/pip install bpy pillow numpy
+```
+```bash
+Q=nobake node tools/shoot.mjs export build/scene.json
+```
+```bash
+.venv-bpy/bin/python tools/bake.py build/scene.json build/final 128 2048 64 && rm -rf bake && cp -r build/final bake
+```
+
+A draft (`16 1024 8`) takes about 2 minutes on 4 cores; the full bake about 40.
+
 ## How it is built
 
 | file | what it does |
@@ -36,7 +52,9 @@ node tools/shoot.mjs video media/walk.mp4 14 24  # full scroll, frame by frame
 | `js/patterns.js` | cement tile, wall tile, black marble and brass jali, painted in code |
 | `js/sheet.js` | labels, dimension strings, door swings, title block, scale bar |
 | `js/rig.js` | the camera as a function of scroll |
-| `js/main.js` | renderer, lights, lines, GSAP ScrollTrigger + Lenis |
+| `js/main.js` | renderer, lines, baked-light loading, GSAP ScrollTrigger + Lenis |
+| `tools/bake.py` | Blender Cycles: lightmaps, reflection probes, `room.glb` |
+| `tools/shoot.mjs` | stills, video and the export for the bake, in headless Chromium |
 
 three.js 0.170, GSAP 3.12.5 and Lenis 1.1.14 load from jsDelivr. With `prefers-reduced-motion`, the page moves in still frames, one per stop.
 

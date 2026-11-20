@@ -10,6 +10,9 @@
 //      descent    0.32 - 0.56   roofs close over, the camera lands in front of the portico
 //   03 entry      0.56 - 0.62   the portico turns to stone and lamplight
 //   04 foyer      0.62 - 1.00   up the steps, through the door, into the double-height hall
+//   05 dining     1.00 - 1.45   across the foyer, through the small arch, down the table to the pool
+//
+// The numbers above are story time T. Scroll progress s (0 to 1) maps to T = s * LENGTH.
 
 import { SITE, CUT_PLAN, CUT_OPEN, GROUND_Y, EYE } from './plan.js';
 
@@ -53,7 +56,8 @@ function glide(keys) {
   };
 }
 
-export const STOPS = { sheet: 0.06, lift: 0.32, land: 0.56, entry: 0.62 };
+export const STOPS = { sheet: 0.06, lift: 0.32, land: 0.56, entry: 0.62, foyer: 1.0 };
+export const LENGTH = 1.45;
 
 export function makeRig(aspect) {
   const portrait = aspect < 0.9;
@@ -90,16 +94,42 @@ export function makeRig(aspect) {
   const ty = track([[0, GROUND_Y], [s1, GROUND_Y], [s2, 0.6, smooth], [s3, DOOR.y, smooth]]);
   const tn = track([[0, frame.cn], [s1, frame.cn], [s2, 8.5, smooth], [s3, DOOR.n, smooth]]);
   // the cut climbs through the walls (staying under the ceilings), then lifts off once we are low
-  const cut = track([[0, CUT_PLAN], [s1 + 0.01, CUT_PLAN], [s2 - 0.02, 3.45, smooth], [0.43, 3.5, lin], [0.53, CUT_OPEN, smooth]]);
+  const cut = track([[0, CUT_PLAN], [s1 + 0.01, CUT_PLAN], [s2 - 0.02, 3.45, smooth], [0.39, 3.5, lin], [0.46, CUT_OPEN, smooth]]);
 
   // on foot
   const walkX = glide([[s3, LAND_X], [0.6, 33.0], [0.7, 28.6], [0.8, 25.2], [0.9, 23.6], [0.97, 23.05], [1, 22.95]]);
+
+  // 05: a curve across the foyer and through the arch into the dining room
+  const P = [[22.95, 4.6], [21.2, 5.7], [19.2, 6.45], [17.65, 6.8], [17.05, 7.45], [16.95, 8.5], [16.15, 8.85], [15.25, 8.8]];
+  const along = glide([[1.0, 0], [1.06, 0.06], [1.24, 0.58], [1.37, 0.9], [1.45, 1]]);
+  const yaw5 = glide([[1.0, 69], [1.1, 62], [1.19, 40], [1.25, 12], [1.31, 3], [1.45, 0]]);
+  const pitch5 = glide([[1.0, 8], [1.12, 1.5], [1.3, 0], [1.45, -1.5]]);
+  const spline = (u) => {
+    const n = P.length - 1, f = Math.min(n - 1e-6, u * n), i = Math.floor(f), t = f - i;
+    const p0 = P[Math.max(0, i - 1)], p1 = P[i], p2 = P[i + 1], p3 = P[Math.min(n, i + 2)];
+    const c = (k) => 0.5 * (2 * p1[k] + (-p0[k] + p2[k]) * t + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * t * t + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * t * t * t);
+    return [c(0), c(1)];
+  };
   const floorAt = (x) => (x >= 28.4 ? GROUND_Y : x <= 27.6 ? 0 : GROUND_Y * smooth((x - 27.6) / 0.8));
 
   function at(sIn) {
-    const s = clamp01(sIn);
-    const o = { s, cut: cut(s) };
-    if (s <= s3) {
+    const s = Math.min(LENGTH, Math.max(0, sIn * LENGTH));
+    const o = { s, cut: cut(s), dining: 0 };
+    if (s > STOPS.foyer) {
+      const [x, n] = spline(along(s));
+      o.fov = fovWalk;
+      o.x = x;
+      o.y = EYE;
+      o.z = -n;
+      o.yaw = yaw5(s) * deg;
+      o.pitch = pitch5(s) * deg;
+      o.dist = 9;
+      o.door = 1;
+      o.entry = 1;
+      o.foyer = 1;
+      o.floor = 0;
+      o.dining = clamp01((s - 1.2) / 0.2);
+    } else if (s <= s3) {
       const e = elev(s) * deg, y = yaw(s) * deg;
       const th = Math.exp(lens(s));
       const dist = Math.exp(frm(s)) / (2 * th);

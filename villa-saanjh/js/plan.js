@@ -43,7 +43,10 @@ export const ROOMS = [
 // Zones the camera walks into. Each one stays a line drawing until its sweep
 // front passes. Box in plan coordinates plus a height range; the sweep starts
 // at `from` (an x or n value) and runs in direction `dir` for `len` metres.
+// The first box that holds a point wins, so the dining room comes before the
+// foyer (whose box also covers the stair hall next to it).
 export const ZONES = [
+  { key: 'dining', x0: 12.55, x1: 17.95, n0: 7.98, n1: 14.75, y0: -0.2, y1: 3.75, dir: [0, 1], from: 7.98, len: 6.8 },
   { key: 'entry', x0: 23.95, x1: 38, n0: -1, n1: 12, y0: -1, y1: 4.6, dir: [-1, 0], from: 36.5, len: 13 },
   { key: 'foyer', x0: 16.0, x1: 23.95, n0: 0.25, n1: 14.75, y0: -0.2, y1: 7.6, dir: [-1, 0], from: 23.95, len: 8.2 },
 ];

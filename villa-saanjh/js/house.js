@@ -98,7 +98,7 @@ function archPane(a0, a1, y0, spring, along, t) {
 // ---------------------------------------------------------------------------
 function frond(kit, zone, base, dir, len, rise, droop, width, rnd) {
   const pts = [];
-  const N = 14;
+  const N = 22;
   for (let i = 0; i <= N; i++) {
     const t = i / N;
     pts.push(new THREE.Vector3(
@@ -109,13 +109,18 @@ function frond(kit, zone, base, dir, len, rise, droop, width, rnd) {
   }
   const side = new THREE.Vector3(-dir.z, 0, dir.x).normalize();
   const pos = [];
-  for (let i = 2; i < N; i++) {
+  for (let i = 3; i < N; i++) {
     const p = pts[i], q = pts[i + 1];
     const t = i / N;
-    const w = width * Math.sin(Math.PI * Math.min(1, t * 1.15)) * (0.8 + 0.4 * rnd());
+    // leaflets are longest mid-frond, short at the tip, and droop a little
+    const L = width * 2.2 * Math.sin(Math.PI * Math.min(1, t * 1.05)) * (0.85 + 0.3 * rnd());
+    const mid = p.clone().lerp(q, 0.55);
     for (const sgn of [-1, 1]) {
-      const tip = p.clone().addScaledVector(side, sgn * w).add(new THREE.Vector3(0, -w * 0.55, 0)).addScaledVector(dir, w * 0.35);
-      pos.push(p.x, p.y, p.z, q.x, q.y, q.z, tip.x, tip.y, tip.z);
+      const tip = p.clone().addScaledVector(side, sgn * L).add(new THREE.Vector3(0, -L * 0.45, 0)).addScaledVector(dir, L * 0.55);
+      const w = mid.clone().addScaledVector(side, sgn * L * 0.5).add(new THREE.Vector3(0, -L * 0.2, 0)).addScaledVector(dir, L * 0.3);
+      // two thin triangles: base to shoulder, shoulder to tip
+      pos.push(p.x, p.y, p.z, mid.x, mid.y, mid.z, w.x, w.y, w.z);
+      pos.push(p.x, p.y, p.z, w.x, w.y, w.z, tip.x, tip.y, tip.z);
     }
   }
   const g = new THREE.BufferGeometry();
@@ -145,7 +150,7 @@ function palm(kit, x, n, y0, h, { zone, seed = 1, fronds = 13, len = 3.2 } = {})
   for (let k = 0; k < fronds; k++) {
     const a = (k / fronds) * Math.PI * 2 + rnd() * 0.4;
     const dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
-    frond(kit, zone, top, dir, len * (0.75 + rnd() * 0.4), 0.5 + rnd() * 0.5, 1.1 + rnd() * 0.5, 0.42, rnd);
+    frond(kit, zone, top, dir, len * (0.75 + rnd() * 0.4), 0.5 + rnd() * 0.5, 1.1 + rnd() * 0.5, 0.26, rnd);
   }
 }
 
@@ -161,7 +166,7 @@ function pottedPalm(kit, x, n, { zone, seed = 3, h = 2.2, pot = 'ceramic' } = {}
     const a = (k / 9) * Math.PI * 2 + rnd() * 0.5;
     const dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
     const base = new THREE.Vector3(x, 0.52, -n);
-    frond(kit, zone, base, dir, h * (0.6 + rnd() * 0.25), 2.2 + rnd() * 0.6, 1.6 + rnd() * 0.4, 0.2, rnd);
+    frond(kit, zone, base, dir, h * (0.6 + rnd() * 0.25), 2.2 + rnd() * 0.6, 1.6 + rnd() * 0.4, 0.11, rnd);
   }
 }
 
@@ -178,6 +183,84 @@ function lantern(kit, x, y, n, { zone, scale = 1, hanging = false } = {}) {
     kit.geo('gold', at(new THREE.CylinderGeometry(0.008 * s, 0.008 * s, 0.36 * s, 4), x + Math.cos(a) * 0.13 * s, y, n + Math.sin(a) * 0.13 * s), { zone, edges: false });
   }
   if (hanging) kit.geo('gold', at(new THREE.CylinderGeometry(0.01, 0.01, hanging, 4), x, y + 0.42 * s + hanging / 2, n), { zone, edges: false });
+}
+
+// A crystal chandelier: gilt rings hung with strings of drops, a chain to the ceiling.
+// `bottom` is the height of the lowest ring; `k` scales the whole fitting.
+function chandelier(kit, zone, x, n, ceiling, bottom, k = 1) {
+  const top = bottom + 0.85 * k;
+  kit.geo('gold', at(new THREE.CylinderGeometry(0.012, 0.012, ceiling - top, 5), x, (ceiling + top) / 2, n), { zone, edges: false });
+  kit.geo('gold', at(new THREE.CylinderGeometry(0.25 * k, 0.08 * k, 0.12, 16), x, ceiling - 0.06, n), { zone });
+  const drop = new THREE.OctahedronGeometry(0.03 * k, 0);
+  drop.scale(1, 1.8, 1);
+  const tiers = [[0.78, 0, 34, 5], [0.58, 0.45, 26, 4], [0.38, 0.85, 18, 3]];
+  for (const [r0, dy, count, len] of tiers) {
+    const r = r0 * k, y = bottom + dy * k;
+    const ring = new THREE.TorusGeometry(r, 0.02, 6, 48);
+    ring.rotateX(Math.PI / 2);
+    kit.geo('gold', at(ring, x, y, n), { zone });
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2;
+      for (let j = 0; j < len; j++) kit.geo('crystal', at(drop.clone(), x + Math.cos(a) * r, y - 0.07 * k - j * 0.085 * k, n + Math.sin(a) * r), { zone, edges: false });
+    }
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      kit.line(zone, [[x + Math.cos(a) * r, y, -(n + Math.sin(a) * r)], [x, y + 0.25 * k, -n]]);
+    }
+  }
+  kit.geo('lampGlass', at(new THREE.CylinderGeometry(0.16 * k, 0.2 * k, 0.8 * k, 16), x, bottom + 0.4 * k, n), { zone, edges: false });
+}
+
+// A dining chair in the Don Joao manner: navy velvet on a gilt frame with an
+// arched, buttoned back. (cx, cn) is the seat centre; `face` turns it about y
+// so that 0 faces north.
+function chair(kit, zone, cx, cn, face) {
+  const parts = [];
+  const g = (geo, mat, edges = true, angle = 40) => parts.push([geo, mat, edges, angle]);
+  // seat
+  g(new THREE.BoxGeometry(0.5, 0.09, 0.48).translate(0, 0.47, 0), 'velvet');
+  g(new THREE.BoxGeometry(0.52, 0.05, 0.5).translate(0, 0.41, 0), 'gold');
+  // legs, turned
+  const L = [[0, 0], [0.025, 0], [0.018, 0.12], [0.028, 0.25], [0.02, 0.4], [0, 0.4]].map(([r, y]) => new THREE.Vector2(r, y));
+  for (const [lx, lz] of [[-0.22, -0.2], [0.22, -0.2], [-0.22, 0.21], [0.22, 0.21]]) g(new THREE.LatheGeometry(L, 10).translate(lx, 0, lz), 'gold', true, 50);
+  // back: an arched velvet panel in a gilt frame
+  const s = new THREE.Shape();
+  s.moveTo(-0.22, 0); s.lineTo(0.22, 0); s.lineTo(0.22, 0.42); s.absarc(0, 0.42, 0.22, 0, Math.PI, false); s.lineTo(-0.22, 0);
+  g(new THREE.ExtrudeGeometry(s, { depth: 0.06, bevelEnabled: false, curveSegments: 16 }).translate(0, 0.52, 0.2), 'velvet', true, 30);
+  const f = new THREE.Shape();
+  f.moveTo(-0.25, 0); f.lineTo(0.25, 0); f.lineTo(0.25, 0.42); f.absarc(0, 0.42, 0.25, 0, Math.PI, false); f.lineTo(-0.25, 0);
+  const hole = new THREE.Path();
+  hole.moveTo(-0.215, 0.03); hole.lineTo(-0.215, 0.42); hole.absarc(0, 0.42, 0.215, Math.PI, 0, true); hole.lineTo(0.215, 0.03); hole.lineTo(-0.215, 0.03);
+  f.holes.push(hole);
+  g(new THREE.ExtrudeGeometry(f, { depth: 0.07, bevelEnabled: false, curveSegments: 16 }).translate(0, 0.5, 0.195), 'gold', true, 30);
+  // the chair faces -z (north) at face = 0; its back is at +z
+  const m = new THREE.Matrix4().makeRotationY(face).premultiply(new THREE.Matrix4().makeTranslation(cx, 0, -cn));
+  for (const [geo, mat, edges, angle] of parts) kit.geo(mat, geo.applyMatrix4(m), { zone, edges, angle });
+}
+
+// A gathered curtain hanging from `top` to the floor, `width` wide, pleated.
+// It hangs at plan (u, n) on a wall that runs east-west, extending in direction `dir` along x.
+function curtain(kit, zone, u, n, dir, width, top) {
+  const cols = 18, rows = 14, pos = [], idx = [], uv = [];
+  for (let j = 0; j <= rows; j++) for (let i = 0; i <= cols; i++) {
+    const t = i / cols, v = j / rows;
+    const x = u + dir * t * width;
+    const z = -(n - 0.06 - 0.05 * Math.sin(t * Math.PI * 7) * (0.6 + 0.4 * v));
+    pos.push(x, top * v, z);
+    uv.push(t * width * 3, v * top);
+  }
+  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+    const a = j * (cols + 1) + i, b = a + 1, c = a + cols + 1, d = c + 1;
+    idx.push(a, b, d, a, d, c);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  kit.geo('drape', g, { zone, edges: false });
+  kit.line(zone, [[u, 0.01, -(n - 0.06)], [u, top, -(n - 0.06)]]);
+  kit.line(zone, [[u + dir * width, 0.01, -(n - 0.06)], [u + dir * width, top, -(n - 0.06)]]);
 }
 
 // ---------------------------------------------------------------------------
@@ -212,6 +295,11 @@ export function buildHouse() {
   // ---- rooms ---------------------------------------------------------------
   for (const r of ROOMS) C(r.x0, r.n0, r.x1, r.n1, 0, r.h);
   C(16.1, 0.3, 23.7, 2.6, 4.25, 7.4); // the foyer is double height over powder and lift too
+  // the first floor is hollow, so a rising cut shows its walls, not a black block
+  C(0.3, 0.3, 23.7, 14.7, 4.3, 7.6);
+  A(15.9, 0.3, 16.1, 8.1, 4.3, 7.6); // first-floor walls around the double-height void
+  A(15.9, 7.9, 18.1, 8.1, 4.3, 7.6);
+  A(17.9, 7.9, 18.1, 14.7, 4.3, 7.6);
   A(18.1, 7.9, 21.85, 9.9, 3.75, 4.0); // upper landing
   C(17.7, 8.3, 18.1, 9.5, 4.0, 6.5); // door to the first floor
 
@@ -240,7 +328,7 @@ export function buildHouse() {
   // clerestory over the lift and powder room: the late sun comes in here
   for (const [a0, a1] of [[16.9, 18.3], [19.2, 20.6], [21.5, 22.9]]) arch('x', 0, 0.3, a0, a1, 6.1, 4.7, true, 'render');
   arch('x', 14.7, 15.0, 20.3, 23.2, 5.2, 2.5, true, 'render'); // stair hall, over the pool
-  arch('x', 14.7, 15.0, 13.2, 17.4, 2.1, 0, true, 'render'); // dining onto the terrace
+  for (const [a0, a1] of [[13.35, 15.15], [15.35, 17.15]]) arch('x', 14.7, 15.0, a0, a1, 2.45, 0, true, 'render'); // dining: French doors to the terrace
   for (const [a0, a1] of [[1.2, 3.8], [5.0, 7.6]]) arch('x', 14.7, 15.0, a0, a1, 2.2, 0, true, 'render'); // master
   arch('n', 0, 0.3, 2.0, 5.8, 1.9, 0.6, true, 'render'); // bedroom 2, west
   arch('n', 0, 0.3, 9.4, 13.4, 1.9, 0.6, true, 'render'); // master, west
@@ -272,7 +360,7 @@ export function buildHouse() {
     if (ny > 0) {
       if (y > 7.8) return 'roof';
       if (Math.abs(y) < 0.01 && HOUSE(x, n)) {
-        if (inRoom('foyer', x, n) || inRoom('stair', x, n)) return 'cement';
+        if (inRoom('foyer', x, n) || inRoom('stair', x, n) || inRoom('dining', x, n)) return 'cement';
         if (inRoom('bed2', x, n) || inRoom('master', x, n) || inRoom('ward', x, n)) return 'teak';
         return 'marbleWhite';
       }
@@ -286,7 +374,8 @@ export function buildHouse() {
     return 'plaster';
   };
   const edgeTag = (mid, air) => zoneOf(air[0], air[1], -air[2]);
-  const shell = S.build(faceMat, edgeTag);
+  // bucket the skin by zone too, so each walked zone gets its own lightmap atlas
+  const shell = S.build((c, nrm) => zoneOf(c[0] + nrm[0] * 0.05, c[1] + nrm[1] * 0.05, -c[2] + nrm[2] * 0.05) + '|' + faceMat(c, nrm), edgeTag);
 
   // arch shoulders and panes
   for (const a of arches) {
@@ -372,28 +461,9 @@ export function buildHouse() {
   border(16.1, 2.6, 23.7, 7.9, 0.45, 'marbleWhite', 0.004);
   border(16.55, 3.05, 23.25, 7.45, 0.12, 'navy', 0.005);
 
-  // chandelier: three gilt rings of crystal drops under a chain
+  // chandelier over the round table
   const CH = { x: 19.9, n: 5.25 };
-  kit.geo('gold', at(new THREE.CylinderGeometry(0.012, 0.012, 2.9, 5), CH.x, 5.95, CH.n), { zone: Z, edges: false });
-  kit.geo('gold', at(new THREE.CylinderGeometry(0.25, 0.08, 0.12, 16), CH.x, 7.34, CH.n), { zone: Z });
-  const drop = new THREE.OctahedronGeometry(0.03, 0);
-  drop.scale(1, 1.8, 1);
-  const tiers = [[0.78, 3.6, 34, 5], [0.58, 4.05, 26, 4], [0.38, 4.45, 18, 3]];
-  for (const [r, y, count, len] of tiers) {
-    const ring = new THREE.TorusGeometry(r, 0.02, 6, 48);
-    ring.rotateX(Math.PI / 2);
-    kit.geo('gold', at(ring, CH.x, y, CH.n), { zone: Z });
-    for (let k = 0; k < count; k++) {
-      const a = (k / count) * Math.PI * 2;
-      for (let j = 0; j < len; j++) kit.geo('crystal', at(drop.clone(), CH.x + Math.cos(a) * r, y - 0.07 - j * 0.085, CH.n + Math.sin(a) * r), { zone: Z, edges: false });
-    }
-    // spokes up to the stem
-    for (let k = 0; k < 6; k++) {
-      const a = (k / 6) * Math.PI * 2;
-      kit.line(Z, [[CH.x + Math.cos(a) * r, y, -(CH.n + Math.sin(a) * r)], [CH.x, y + 0.25, -CH.n]]);
-    }
-  }
-  kit.geo('lampGlass', at(new THREE.CylinderGeometry(0.16, 0.2, 0.8, 16), CH.x, 4.0, CH.n), { zone: Z, edges: false });
+  chandelier(kit, Z, CH.x, CH.n, 7.4, 3.6, 1);
 
   // round table under the chandelier: gilt pedestal, white marble top, flowers
   const ped = new THREE.LatheGeometry(
@@ -508,6 +578,8 @@ export function buildHouse() {
   // jali screen between the flights
   {
     const g = new THREE.PlaneGeometry(2.8, 3.9);
+    const uv = g.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 2.8, uv.getY(i) * 3.9); // UVs in metres, like everything else
     g.rotateY(Math.PI / 2);
     kit.geo('jali', at(g, 21.9, 1.95, 11.3), { zone: Z, edges: false });
     kit.line(Z, [[21.9, 0, -9.9], [21.9, 3.9, -9.9], [21.9, 3.9, -12.7], [21.9, 0, -12.7], [21.9, 0, -9.9]]);
@@ -536,6 +608,122 @@ export function buildHouse() {
   rail(20.15, 14.65, 2.0, 20.15, 12.68, 2.0);
   // a door to the first floor, in teak
   kit.box('teak', 17.78, 8.3, 17.82, 9.5, 4.0, 6.4, { zone: Z });
+
+
+  // ---- the dining room -----------------------------------------------------------------
+  const D = 'dining';
+  // floor: the same cement tile, inside a navy border and a white marble surround
+  {
+    const x0 = 12.6, x1 = 17.9, n0 = 8.1, n1 = 14.7;
+    const band = (a0, b0, a1, b1, w, mat, y) => {
+      kit.box(mat, a0, b0, a1, b0 + w, 0, y, { zone: D, edges: false });
+      kit.box(mat, a0, b1 - w, a1, b1, 0, y, { zone: D, edges: false });
+      kit.box(mat, a0, b0 + w, a0 + w, b1 - w, 0, y, { zone: D, edges: false });
+      kit.box(mat, a1 - w, b0 + w, a1, b1 - w, 0, y, { zone: D, edges: false });
+      kit.line(D, [[a0 + w, y, -(b0 + w)], [a1 - w, y, -(b0 + w)], [a1 - w, y, -(b1 - w)], [a0 + w, y, -(b1 - w)], [a0 + w, y, -(b0 + w)]]);
+    };
+    band(x0, n0, x1, n1, 0.4, 'marbleWhite', 0.004);
+    band(x0 + 0.4, n0 + 0.4, x1 - 0.4, n1 - 0.4, 0.12, 'navy', 0.005);
+  }
+  // panelled walls: gilt mouldings in rectangles, a dado rail and a cornice
+  const frameOn = (axis, at0, u0, u1, y0, y1, out) => {
+    const t = 0.03, d = 0.025;
+    const B = (a0, b0, a1, b1, ya, yb) => kit.box('gold', a0, b0, a1, b1, ya, yb, { zone: D, edges: false });
+    if (axis === 'x') { // wall facing along n, at n = at0, room side `out`
+      const n0 = out > 0 ? at0 : at0 - d, n1 = out > 0 ? at0 + d : at0;
+      B(u0, n0, u1, n1, y0, y0 + t); B(u0, n0, u1, n1, y1 - t, y1);
+      B(u0, n0, u0 + t, n1, y0, y1); B(u1 - t, n0, u1, n1, y0, y1);
+      kit.line(D, [[u0, y0, -n1], [u1, y0, -n1], [u1, y1, -n1], [u0, y1, -n1], [u0, y0, -n1]].map((p) => (out > 0 ? p : [p[0], p[1], -n0])));
+    } else { // wall facing along x, at x = at0
+      const x0 = out > 0 ? at0 : at0 - d, x1 = out > 0 ? at0 + d : at0;
+      B(x0, u0, x1, u1, y0, y0 + t); B(x0, u0, x1, u1, y1 - t, y1);
+      B(x0, u0, x1, u0 + t, y0, y1); B(x0, u1 - t, x1, u1, y0, y1);
+      const xf = out > 0 ? x1 : x0;
+      kit.line(D, [[xf, y0, -u0], [xf, y0, -u1], [xf, y1, -u1], [xf, y1, -u0], [xf, y0, -u0]]);
+    }
+  };
+  // west wall (x = 12.6, facing east): three tall panels behind the sideboard
+  for (const [u0, u1] of [[8.6, 10.2], [10.55, 12.25], [12.6, 14.2]]) {
+    frameOn('n', 12.6, u0, u1, 0.25, 0.85, 1);
+    frameOn('n', 12.6, u0, u1, 1.05, 3.25, 1);
+  }
+  kit.box('plaster', 12.6, 8.1, 12.68, 14.7, 0.9, 0.98, { zone: D });
+  kit.box('plaster', 12.6, 8.1, 17.9, 8.22, 3.4, 3.6, { zone: D });
+  kit.box('plaster', 12.6, 14.58, 17.9, 14.7, 3.4, 3.6, { zone: D });
+  kit.box('plaster', 12.6, 8.1, 12.72, 14.7, 3.4, 3.6, { zone: D });
+  kit.box('plaster', 17.78, 8.1, 17.9, 14.7, 3.4, 3.6, { zone: D });
+
+  // sideboard against the west wall, with an arched gilt mirror above
+  kit.box('teak', 12.62, 10.3, 13.1, 12.5, 0.12, 0.88, { zone: D });
+  kit.box('marbleWhite', 12.6, 10.25, 13.14, 12.55, 0.88, 0.92, { zone: D });
+  for (const [u0, u1] of [[10.4, 11.05], [11.1, 11.75], [11.8, 12.4]]) kit.box('teak', 13.1, u0, 13.13, u1, 0.2, 0.8, { zone: D });
+  for (const u of [10.72, 11.42, 12.1]) kit.geo('gold', at(new THREE.SphereGeometry(0.018, 8, 6), 13.15, 0.66, u), { zone: D, edges: false });
+  for (const [u, side] of [[10.35, 0], [12.45, 1]]) kit.geo('gold', at(new THREE.CylinderGeometry(0.03, 0.02, 0.12, 8), 12.85, 0.06, u), { zone: D, edges: false });
+  kit.geo('mirror', archPane(10.55, 12.25, 1.25, 2.55, 'n', 12.64).applyMatrix4(new THREE.Matrix4().makeTranslation(0.02, 0, 0)), { zone: D });
+  kit.geo('gold', archFill(10.45, 12.35, 2.55, 2.55 + 0.95 + 0.01, 'n', 12.6, 12.68).applyMatrix4(new THREE.Matrix4().makeScale(1, 1, 1)), { zone: D, edges: false });
+  for (const [u0, u1] of [[10.45, 10.55], [12.25, 12.35]]) kit.box('gold', 12.6, u0, 12.68, u1, 1.2, 2.55, { zone: D, edges: false });
+  kit.box('gold', 12.6, 10.45, 12.68, 12.35, 1.17, 1.25, { zone: D, edges: false });
+  lantern(kit, 12.95, 1.12, 10.7, { zone: D, scale: 0.6 });
+  lantern(kit, 12.95, 1.12, 12.1, { zone: D, scale: 0.6 });
+  kit.geo('porcelain', at(new THREE.LatheGeometry([[0, 0], [0.09, 0], [0.15, 0.1], [0.14, 0.3], [0.06, 0.42], [0.08, 0.46], [0, 0.46]].map(([r, y]) => new THREE.Vector2(r, y)), 24), 12.88, 0.92, 11.4), { zone: D, angle: 40 });
+
+  // the table: teak top on four carved gilt legs, for eight
+  const TX = 15.25, TN0 = 10.15, TN1 = 12.75, TW = 1.1;
+  kit.box('teak', TX - TW / 2, TN0, TX + TW / 2, TN1, 0.72, 0.77, { zone: D });
+  kit.box('teak', TX - TW / 2 + 0.06, TN0 + 0.06, TX + TW / 2 - 0.06, TN1 - 0.06, 0.64, 0.72, { zone: D });
+  const leg = [[0, 0], [0.06, 0], [0.045, 0.08], [0.035, 0.25], [0.06, 0.38], [0.035, 0.5], [0.05, 0.64], [0, 0.64]].map(([r, y]) => new THREE.Vector2(r, y));
+  for (const [lx, ln] of [[TX - TW / 2 + 0.1, TN0 + 0.1], [TX + TW / 2 - 0.1, TN0 + 0.1], [TX - TW / 2 + 0.1, TN1 - 0.1], [TX + TW / 2 - 0.1, TN1 - 0.1]]) {
+    kit.geo('gold', at(new THREE.LatheGeometry(leg, 16), lx, 0, ln), { zone: D, angle: 45 });
+  }
+  // a table runner, a low arrangement, candlesticks and eight place settings
+  kit.box('velvet', TX - 0.22, TN0 + 0.15, TX + 0.22, TN1 - 0.15, 0.77, 0.775, { zone: D, edges: false });
+  {
+    const rnd = seeded(77);
+    const ball = new THREE.IcosahedronGeometry(1, 1);
+    for (let k = 0; k < 160; k++) {
+      const a = rnd() * Math.PI * 2, rr = Math.sqrt(rnd());
+      const px = TX + Math.cos(a) * rr * 0.16, pn = (TN0 + TN1) / 2 + Math.sin(a) * rr * 0.42, py = 0.86 + (1 - rr) * 0.1 + rnd() * 0.04;
+      const r = 0.02 + rnd() * 0.018;
+      const c = rnd();
+      kit.geo(c < 0.5 ? 'flowerWhite' : c < 0.85 ? 'flowerPink' : 'flowerPlum', at(ball.clone().scale(r, r * 0.8, r), px, py, pn), { zone: D, edges: false });
+    }
+    kit.geo('porcelain', at(new THREE.CylinderGeometry(0.2, 0.16, 0.09, 24).scale(1, 1, 2.4), TX, 0.82, (TN0 + TN1) / 2), { zone: D, angle: 40 });
+  }
+  for (const dn of [-0.75, 0.75]) {
+    const stick = new THREE.LatheGeometry([[0, 0], [0.06, 0], [0.04, 0.03], [0.015, 0.08], [0.025, 0.2], [0.012, 0.3], [0.03, 0.33], [0, 0.33]].map(([r, y]) => new THREE.Vector2(r, y)), 12);
+    kit.geo('gold', at(stick, TX, 0.775, (TN0 + TN1) / 2 + dn), { zone: D, angle: 50 });
+    kit.geo('porcelain', at(new THREE.CylinderGeometry(0.011, 0.011, 0.2, 8), TX, 1.2, (TN0 + TN1) / 2 + dn), { zone: D, edges: false });
+  }
+  const seats = [];
+  for (const sn of [10.75, 11.45, 12.15]) {
+    seats.push([TX - TW / 2 - 0.32, sn, -Math.PI / 2]);
+    seats.push([TX + TW / 2 + 0.32, sn, Math.PI / 2]);
+  }
+  seats.push([TX, TN0 - 0.38, 0]);
+  seats.push([TX, TN1 + 0.38, Math.PI]);
+  for (const [cx, cn, face] of seats) {
+    chair(kit, D, cx, cn, face);
+    // the place setting on the table in front of the chair
+    const px = cx + Math.sin(-face) * 0.0 + (face === -Math.PI / 2 ? 0.42 : face === Math.PI / 2 ? -0.42 : 0);
+    const pn = cn + (face === 0 ? 0.48 : face === Math.PI ? -0.48 : 0);
+    kit.geo('porcelain', at(new THREE.CylinderGeometry(0.14, 0.12, 0.018, 32), px, 0.779, pn), { zone: D, edges: false });
+    kit.geo('ceramic', at(new THREE.CylinderGeometry(0.1, 0.085, 0.022, 32), px, 0.795, pn), { zone: D, edges: false });
+    kit.geo('gold', at(new THREE.TorusGeometry(0.14, 0.004, 4, 32).rotateX(Math.PI / 2), px, 0.789, pn), { zone: D, edges: false });
+    const glass = new THREE.LatheGeometry([[0, 0], [0.035, 0], [0.006, 0.01], [0.005, 0.09], [0.04, 0.13], [0.038, 0.2], [0.036, 0.2]].map(([r, y]) => new THREE.Vector2(r, y)), 16);
+    const gx = px + (face === -Math.PI / 2 ? 0.0 : face === Math.PI / 2 ? 0.0 : 0.17);
+    const gn = pn + (face === -Math.PI / 2 ? 0.17 : face === Math.PI / 2 ? -0.17 : 0);
+    kit.geo('crystal', at(glass, gx, 0.775, gn), { zone: D, edges: false });
+  }
+  chandelier(kit, D, TX, (TN0 + TN1) / 2, 3.6, 2.5, 0.62);
+
+  // curtains: navy velvet, gathered either side of each French door
+  for (const [c0, c1] of [[13.35, 15.15], [15.35, 17.15]]) {
+    for (const [u, dir] of [[c0 - 0.05, -1], [c1 + 0.05, 1]]) curtain(kit, D, u, 14.62, dir, 0.45, 3.35);
+    kit.geo('gold', at(new THREE.CylinderGeometry(0.018, 0.018, c1 - c0 + 1.1, 8).rotateZ(Math.PI / 2), (c0 + c1) / 2, 3.38, 14.6), { zone: D, edges: false });
+  }
+  // two palms in the corners, by the doors
+  pottedPalm(kit, 13.1, 14.1, { zone: D, seed: 21, h: 2.0 });
+  pottedPalm(kit, 17.4, 14.1, { zone: D, seed: 22, h: 2.0 });
 
   // ---- outside: the portico and the approach --------------------------------------------
   const E = 'entry';

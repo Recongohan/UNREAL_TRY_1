@@ -7,11 +7,13 @@ import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
 import { PAPER, INK, GROUND_Y, SUN } from './plan.js';
-import { CUT, ZONE_PLANES, setZoneReveal, loadTextures, makeMaterials } from './materials.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
+import { CUT, ZONE_PLANES, setZoneReveal, loadTextures, makeMaterials, withLightmap } from './materials.js';
 import { cementTile, wallTile, blackMarble, jali } from './patterns.js';
 import { buildHouse } from './house.js';
 import { buildSheet } from './sheet.js';
-import { makeRig, STOPS } from './rig.js';
+import { makeRig, STOPS, LENGTH } from './rig.js';
 
 const params = new URLSearchParams(location.search);
 const CAPTURE = params.has('capture'); // recording: one exact frame per request, no smoothing
@@ -83,6 +85,7 @@ const house = new THREE.Group();
 scene.add(house);
 const H = buildHouse();
 let M, door = [];
+const parts = {}; // 'zone|mat' -> mesh, so baked versions can replace them
 
 function assemble() {
   const solid = (geo, mat, shadows = true) => {
@@ -92,7 +95,7 @@ function assemble() {
     house.add(m);
     return m;
   };
-  for (const key in H.shell.geometries) solid(H.shell.geometries[key], M[key]);
+  for (const key in H.shell.geometries) parts['shell:' + key] = solid(H.shell.geometries[key], M[key.split('|')[1]]);
   for (const key in H.shell.edges) house.add(inkLines('structure', key, H.shell.edges[key]));
   for (const key in H.kit.parts) {
     const mat = key.split('|')[1];
@@ -100,19 +103,109 @@ function assemble() {
     const glow = ['glass', 'lampGlass', 'crystal', 'night'].includes(mat);
     const mesh = solid(H.kit.parts[key].geometry(), M[mat], !glow);
     if (mat === 'glass') mesh.renderOrder = 3;
+    parts['kit:' + key] = mesh;
   }
   for (const key in H.kit.lines) house.add(inkLines('kit', key, H.kit.lines[key]));
-  for (const g of H.leaves) {
+  H.leaves.forEach((g, i) => {
     const u = g.userData;
-    for (const [geo, mat] of [[u.part, M.teak], [u.trim, M.teak], [u.brass, M.gold]]) {
+    for (const [geo, mat, name] of [[u.part, M.teak, 'teak'], [u.trim, M.teak, 'trim'], [u.brass, M.gold, 'gold']]) {
       const m = new THREE.Mesh(geo, mat);
       m.castShadow = m.receiveShadow = true;
       g.add(m);
+      parts[`leaf${i}:${name}`] = m;
     }
     g.add(inkLines('kit', 'foyer', u.lines));
     house.add(g);
     door.push(g);
+  });
+}
+
+// ---- baked light (Blender / Cycles) ----------------------------------------------------------
+// Everything the bake needs, for tools/bake.py: the meshes of the walked zones and
+// the rest of the house (which still blocks and bounces light), and the lights.
+const OPEN_DOOR = 1.62;
+const LAMPS = [];
+window.__bakeData = () => {
+  const out = { meshes: [], lights: LAMPS, sun: SUN, openDoor: OPEN_DOOR };
+  for (const [key, mesh] of Object.entries(parts)) {
+    const g = mesh.geometry, P = g.attributes.position, Nn = g.attributes.normal, UV = g.attributes.uv;
+    const leaf = key.startsWith('leaf');
+    const [, zm] = key.split(':');
+    const mat = leaf ? (key.endsWith('gold') ? 'gold' : 'teak') : zm.split('|')[1];
+    const zone = leaf ? 'foyer' : zm.split('|')[0];
+    const r = (a) => Array.from(a, (v) => Math.round(v * 1e4) / 1e4);
+    out.meshes.push({
+      key, zone, mat, bake: zone !== 'rest',
+      // leaves are built about their hinge; the bake places them open
+      pivot: leaf ? [mesh.parent.position.x, mesh.parent.position.y, mesh.parent.position.z, OPEN_DOOR * mesh.parent.userData.sign] : null,
+      position: r(P.array), normal: r(Nn.array), uv: UV ? r(UV.array) : null, index: g.index ? Array.from(g.index.array) : null,
+    });
   }
+  return out;
+};
+
+let baked = null;
+async function loadBake() {
+  let meta;
+  try {
+    const r = await fetch('bake/scene.json', { cache: 'no-cache' });
+    if (!r.ok) return null;
+    meta = await r.json();
+  } catch {
+    return null;
+  }
+  const tl = new THREE.TextureLoader();
+  const lms = {};
+  await Promise.all(Object.entries(meta.lightmaps).map(async ([name, d]) => {
+    const t = await tl.loadAsync('bake/' + d.file);
+    t.flipY = false;
+    t.channel = 1;
+    t.colorSpace = THREE.SRGBColorSpace;
+    lms[name] = { tex: t, intensity: d.scale * Math.PI };
+  }));
+  const gltf = await new GLTFLoader().loadAsync('bake/' + meta.glb);
+  const cache = new Map();
+  const swaps = [];
+  gltf.scene.traverse((o) => {
+    if (!o.isMesh) return;
+    const key = o.userData.key || o.parent?.userData?.key;
+    const atlas = o.userData.lightmap || o.parent?.userData?.lightmap;
+    if (!key || !parts[key]) return;
+    swaps.push([key, atlas, o]);
+  });
+  for (const [key, atlas, o] of swaps) {
+    const old = parts[key];
+    const lm = lms[atlas];
+    const ck = old.material.uuid + atlas;
+    if (!cache.has(ck)) cache.set(ck, withLightmap(old.material, lm.tex, lm.intensity));
+    old.geometry.dispose();
+    old.geometry = o.geometry; // same positions, plus the lightmap UVs (uv1)
+    old.material = cache.get(ck);
+    old.castShadow = old.receiveShadow = false;
+  }
+  // small or thin things (flowers, leaves, crystal, metal) were not baked: one even light level per zone
+  const white = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1);
+  white.needsUpdate = true;
+  white.channel = 1;
+  const swapped = new Set(swaps.map((w) => w[0]));
+  for (const [key, mesh] of Object.entries(parts)) {
+    if (swapped.has(key)) continue;
+    const zone = key.startsWith('leaf') ? 'foyer' : key.split(':')[1].split('|')[0];
+    if (!(zone in meta.flat)) continue;
+    const g = mesh.geometry;
+    if (!g.attributes.uv1) g.setAttribute('uv1', new THREE.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
+    mesh.material = withLightmap(mesh.material, white, meta.flat[zone] * Math.PI);
+    mesh.castShadow = mesh.receiveShadow = false;
+  }
+  // a 360 capture from inside each zone, for reflections
+  const envs = {};
+  for (const [zone, file] of Object.entries(meta.env || {})) {
+    const hdr = await new RGBELoader().loadAsync('bake/' + file);
+    hdr.mapping = THREE.EquirectangularReflectionMapping;
+    envs[zone] = pmrem.fromEquirectangular(hdr).texture;
+    hdr.dispose();
+  }
+  return { meta, envs, swapped: swaps.length };
 }
 
 // ---- light: the last hour of sun, and the lamps coming on --------------------------------
@@ -128,22 +221,31 @@ Object.assign(sun.shadow.camera, { left: -22, right: 22, top: 22, bottom: -22, n
 sun.shadow.bias = -0.0003;
 sun.shadow.normalBias = 0.02;
 scene.add(sun, sun.target);
-scene.add(new THREE.HemisphereLight(0xc9d3e6, 0xb39a7c, 0.85));
-const lamp = (x, y, n, intensity, dist = 0, color = 0xffc78a) => {
+const realtime = [sun];
+const lamp = (x, y, n, intensity, dist = 0, color = 0xffc78a, watts = 0, radius = 0.1) => {
   const l = new THREE.PointLight(color, intensity, dist, 2);
   l.position.set(x, y, -n);
   scene.add(l);
+  realtime.push(l);
+  if (watts) LAMPS.push({ x, y, n, watts, radius, color: '#' + new THREE.Color(color).getHexString() });
   return l;
 };
-lamp(19.9, 3.9, 5.25, 30, 0, 0xffd6a8); // chandelier
-lamp(19.9, 2.2, 5.25, 6, 0, 0xffe0c0); // its light bounced off the floor
-lamp(25.8, 3.0, 5.25, 9, 12); // portico lantern
-lamp(24.45, 2.35, 3.75, 2.2, 6);
-lamp(24.45, 2.35, 6.75, 2.2, 6);
-lamp(20.95, 2.25, 2.95, 2.0, 5);
-lamp(23.35, 2.25, 2.95, 2.0, 5);
-lamp(22.8, 1.2, 11.3, 5, 6); // behind the jali
-lamp(16.6, 1.4, 3.3, 1.2, 4);
+const hemi = new THREE.HemisphereLight(0xc9d3e6, 0xb39a7c, 0.85);
+scene.add(hemi);
+realtime.push(hemi);
+// (x, y, n, three.js intensity, range, colour, Blender watts, Blender radius)
+lamp(19.9, 4.0, 5.25, 30, 0, 0xffd6a8, 380, 0.35); // foyer chandelier
+lamp(19.9, 2.2, 5.25, 6, 0, 0xffe0c0); // its light bounced off the floor (realtime only)
+lamp(25.8, 3.0, 5.25, 9, 12, 0xffc78a, 160, 0.12); // portico lantern
+lamp(24.45, 2.35, 3.75, 2.2, 6, 0xffc78a, 25, 0.08);
+lamp(24.45, 2.35, 6.75, 2.2, 6, 0xffc78a, 25, 0.08);
+lamp(20.95, 2.25, 2.95, 2.0, 5, 0xffc78a, 25, 0.08);
+lamp(23.35, 2.25, 2.95, 2.0, 5, 0xffc78a, 25, 0.08);
+lamp(22.8, 1.2, 11.3, 5, 6, 0xffc78a, 70, 0.2); // behind the jali
+lamp(16.6, 1.4, 3.3, 1.2, 4, 0xffc78a, 8, 0.05);
+lamp(15.25, 2.75, 11.45, 14, 0, 0xffd6a8, 200, 0.28); // dining chandelier
+lamp(12.95, 1.3, 10.7, 0.8, 3, 0xffc78a, 6, 0.04);
+lamp(12.95, 1.3, 12.1, 0.8, 3, 0xffc78a, 6, 0.04);
 
 // ---- sheet, rig, resize ------------------------------------------------------------------
 let rig, sheet, sheetGroup;
@@ -187,6 +289,7 @@ function draw(s) {
   CUT.constant = o.cut;
   setZoneReveal('entry', o.entry);
   setZoneReveal('foyer', o.foyer);
+  setZoneReveal('dining', o.dining);
   const a = o.door * 1.62;
   if (a !== lastDoor) {
     for (const g of door) g.rotation.y = a * g.userData.sign;
@@ -203,6 +306,14 @@ function draw(s) {
   rail.forEach((r, i) => { if (s >= +r.dataset.at) on = i; });
   rail.forEach((r, i) => r.classList.toggle('on', i === on));
   grain.style.opacity = (0.5 * (1 - Math.max(o.entry * 0.5, o.foyer))).toFixed(3);
+  if (baked) {
+    renderer.toneMappingExposure = baked.meta.exposure;
+    const z = o.dining > 0.25 ? 'dining' : o.foyer > 0.25 ? 'foyer' : 'entry';
+    if (baked.envs[z] && scene.environment !== baked.envs[z]) {
+      scene.environment = baked.envs[z];
+      scene.environmentIntensity = 1;
+    }
+  }
 }
 
 // ---- scroll ------------------------------------------------------------------------------------
@@ -214,12 +325,14 @@ const caption = (sel, a, b) => {
   tl.fromTo(sel, { autoAlpha: 0, y: 20 }, { autoAlpha: 1, y: 0, duration: 0.03 }, a);
   if (b) tl.to(sel, { autoAlpha: 0, y: -14, duration: 0.03 }, b);
 };
-caption('#cap-lift', 0.1, 0.3);
-caption('#cap-entry', 0.54, 0.68);
-caption('#cap-foyer', 0.93, null);
+const T = (t) => t / LENGTH; // story time to scroll progress
+caption('#cap-lift', T(0.1), T(0.3));
+caption('#cap-entry', T(0.54), T(0.68));
+caption('#cap-foyer', T(0.92), T(1.08));
+caption('#cap-dining', T(1.4), null);
 
 // with reduced motion the page moves in still frames, one per stop
-const STILLS = [0, STOPS.sheet + 0.1, STOPS.land, 1];
+const STILLS = [0, STOPS.sheet + 0.1, STOPS.land, STOPS.foyer, LENGTH].map(T);
 const still = (s) => STILLS.reduce((best, v) => (Math.abs(v - s) < Math.abs(best - s) ? v : best), 0);
 
 let drawn = -1;
@@ -236,9 +349,15 @@ async function boot() {
     Promise.all(['400 20px "DM Mono"', '500 20px "DM Mono"', '500 40px "Cormorant Garamond"', 'italic 400 40px "Cormorant Garamond"'].map((f) => document.fonts.load(f))),
     new Promise((r) => setTimeout(r, 3000)),
   ]);
-  const T = await loadTextures(ANISO);
-  M = makeMaterials(T, { cement: cementTile(ANISO), wallTile: wallTile(ANISO), blackMarble: blackMarble(ANISO), jali: jali() });
+  const TX = await loadTextures(ANISO);
+  M = makeMaterials(TX, { cement: cementTile(ANISO), wallTile: wallTile(ANISO), blackMarble: blackMarble(ANISO), jali: jali() });
   assemble();
+  if (!params.has('nobake')) baked = await loadBake();
+  if (baked) {
+    // the lightmaps hold all the light now: real-time lights and shadows go
+    for (const l of realtime) l.intensity = 0;
+    renderer.shadowMap.enabled = false;
+  }
   layout();
   draw(0);
 
@@ -269,7 +388,7 @@ async function boot() {
     drawn = -1;
     if (CAPTURE) draw(proxy.s);
   });
-  window.__state = () => ({ ...last, errors: errors.slice(), calls: renderer.info.render.calls, tris: renderer.info.render.triangles });
+  window.__state = () => ({ ...last, baked: baked ? baked.swapped : 0, errors: errors.slice(), calls: renderer.info.render.calls, tris: renderer.info.render.triangles });
   const loading = document.getElementById('loading');
   if (CAPTURE) loading.style.transition = 'none';
   loading.classList.add('done');
