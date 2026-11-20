@@ -1,0 +1,28 @@
+{
+ "glb": "room.glb",
+ "lightmaps": {
+  "lm_dining": {
+   "file": "lm_dining.png",
+   "scale": 2.495465040206909
+  },
+  "lm_foyer": {
+   "file": "lm_foyer.png",
+   "scale": 1.9831361770629883
+  },
+  "lm_entry": {
+   "file": "lm_entry.png",
+   "scale": 2.691462993621826
+  }
+ },
+ "flat": {
+  "dining": 0.3794035017490387,
+  "foyer": 0.3575895428657532,
+  "entry": 0.8114296793937683
+ },
+ "env": {
+  "entry": "env_entry.hdr",
+  "foyer": "env_foyer.hdr",
+  "dining": "env_dining.hdr"
+ },
+ "exposure": 1.0
+}
