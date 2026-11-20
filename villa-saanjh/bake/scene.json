@@ -1,28 +1,40 @@
 {
  "glb": "room.glb",
  "lightmaps": {
+  "lm_pool": {
+   "file": "lm_pool.png",
+   "scale": 2.1909501552581787
+  },
   "lm_dining": {
    "file": "lm_dining.png",
-   "scale": 2.495465040206909
+   "scale": 2.8507349491119385
   },
   "lm_foyer": {
    "file": "lm_foyer.png",
-   "scale": 1.9831361770629883
+   "scale": 1.9433889389038086
   },
   "lm_entry": {
    "file": "lm_entry.png",
-   "scale": 2.691462993621826
+   "scale": 2.6011240482330322
+  },
+  "lm_gallery": {
+   "file": "lm_gallery.png",
+   "scale": 1.4387843608856201
   }
  },
  "flat": {
-  "dining": 0.3794035017490387,
-  "foyer": 0.3575895428657532,
-  "entry": 0.8114296793937683
+  "pool": 0.5313838720321655,
+  "dining": 0.4189549386501312,
+  "foyer": 0.34600648283958435,
+  "entry": 0.7386489510536194,
+  "gallery": 0.38358232378959656
  },
  "env": {
   "entry": "env_entry.hdr",
   "foyer": "env_foyer.hdr",
-  "dining": "env_dining.hdr"
+  "dining": "env_dining.hdr",
+  "pool": "env_pool.hdr",
+  "gallery": "env_gallery.hdr"
  },
  "exposure": 1.0
 }
