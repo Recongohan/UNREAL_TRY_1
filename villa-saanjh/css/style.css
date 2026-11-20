@@ -59,6 +59,7 @@ h1 em { font-style: italic; }
 #end h2 { font-family: var(--serif); font-weight: 400; font-size: clamp(56px, 9vw, 128px); line-height: 0.95; margin: 18px 0 20px; }
 #end h2 em { font-style: italic; }
 #end .lede { margin: 0 auto; }
+#end .credits { margin: 28px auto 0; max-width: 52ch; font-size: 9.5px; letter-spacing: 0.06em; line-height: 1.6; color: var(--soft); }
 
 #rail {
   position: fixed; z-index: 2; right: clamp(16px, 3vw, 36px); top: 50%; transform: translateY(-50%);

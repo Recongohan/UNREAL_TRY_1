@@ -4,7 +4,7 @@ A scroll-driven landing page. It opens on a printed ground-floor plan. On scroll
 
 The plan is not a picture: it is the 3D model, cut at 1.2 m and seen from straight above through a 1.6° lens.
 
-**Status: checkpoint 3.** The sheet, the walls rising, the entry, the double-height foyer, the dining room, the pool terrace and the gallery, lit by light baked in Blender Cycles. The bedrooms are still ink.
+**Status: complete (checkpoints 1–5).** The sheet, the walls rising, the entry portico, the double-height foyer, the dining room, the pool terrace, the gallery and the master bedroom, ending at the window over the pool. All lit by light baked in Blender Cycles.
 
 ## Run it
 
@@ -39,7 +39,21 @@ Q=nobake node tools/shoot.mjs export build/scene.json
 .venv-bpy/bin/python tools/bake.py build/scene.json build/final 128 2048 64 && rm -rf bake && cp -r build/final bake
 ```
 
-A draft (`16 1024 8`) takes about 2 minutes on 4 cores; the full bake about 40.
+Then shrink it for the web (WebP lightmaps, 512x256 probes):
+
+```bash
+.venv-bpy/bin/python tools/pack.py bake
+```
+
+A draft (`16 1024 8`) takes about 5 minutes on 4 cores; the full bake about 80. Don't run `gltf-transform meshopt` on `room.glb`: it quantises positions into the node transform and the metre-scale texture UVs, which the page's mesh swap doesn't expect.
+
+## Test it
+
+```bash
+node tools/smoke.mjs
+```
+
+Loads the real page (Lenis + ScrollTrigger), wheels to the bottom, checks the story reaches the closing card with no errors, and wheels back to the sheet.
 
 ## How it is built
 
@@ -50,6 +64,7 @@ A draft (`16 1024 8`) takes about 2 minutes on 4 cores; the full bake about 40.
 | `js/house.js` | the villa: shell, arches, portico, Dutch gable, stair, chandelier, furniture, plants |
 | `js/materials.js` | one shader blends paper-and-ink into lit material as each zone's sweep front passes |
 | `js/patterns.js` | cement tile, wall tile, black marble and brass jali, painted in code |
+| `js/models.js` | real furniture (glTF): placement, material variants, ink |
 | `js/sheet.js` | labels, dimension strings, door swings, title block, scale bar |
 | `js/rig.js` | the camera as a function of scroll |
 | `js/main.js` | renderer, lines, baked-light loading, GSAP ScrollTrigger + Lenis |
@@ -61,5 +76,6 @@ three.js 0.170, GSAP 3.12.5 and Lenis 1.1.14 load from jsDelivr. With `prefers-r
 ## Credits
 
 - Limestone, white oak, lime plaster and leather maps: CC0 scans from [Poly Haven](https://polyhaven.com).
-- Patterned tiles, marble and jali: generated in `js/patterns.js`.
+- Patterned tiles, marble, jali, mosaic, water ripples and the gallery painting: generated in `js/patterns.js`.
+- Furniture from the [Khronos glTF Sample Assets](https://github.com/KhronosGroup/glTF-Sample-Assets): *SheenChair* © 2020 Wayfair, LLC (Eric Chadwick), CC0 1.0; *GlamVelvetSofa* © 2021 Wayfair, LLC, CC BY 4.0; *ChairDamaskPurplegold* © 2021 Wayfair, CC BY 4.0; *DiffuseTransmissionPlant* © 2024 Darmstadt Graphics Group GmbH, CC BY 4.0. Textures resized to 1024 px and converted to WebP.
 - Motion modelled on the casa-larga demo; look after the brief's reference villa (Goan heritage, Moroccan detail). The house, its name and the place are invented.
