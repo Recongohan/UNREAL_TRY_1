@@ -1,0 +1,76 @@
+:root {
+  --paper: #f2efe7;
+  --ink: #1a1a1d;
+  --soft: rgba(26, 26, 29, 0.62);
+  --mono: "DM Mono", ui-monospace, Menlo, monospace;
+  --serif: "Cormorant Garamond", Georgia, serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: var(--paper); color: var(--ink); }
+body { font-family: var(--mono); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+
+#gl { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+#track { height: 760vh; }
+
+/* paper grain over the drawing; it fades as rooms turn real */
+#grain {
+  position: fixed; inset: 0; pointer-events: none; opacity: 0.5; mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.1  0 0 0 0 0.09  0 0 0 0 0.08  0 0 0 0.08 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+.overlay { position: fixed; z-index: 2; }
+
+#bar {
+  position: fixed; z-index: 3; top: 0; left: 0; right: 0;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 18px clamp(16px, 3vw, 36px);
+}
+.mark { font-family: var(--serif); font-size: 21px; font-weight: 500; letter-spacing: 0.01em; }
+.chip {
+  display: inline-flex; gap: 18px; font-size: 10.5px; letter-spacing: 0.12em;
+  border: 1px solid var(--ink); padding: 7px 12px; background: var(--paper);
+}
+.chip b { font-weight: 500; }
+
+#hero { top: 0; left: 0; width: min(36vw, 520px); height: 100vh; padding: 92px clamp(16px, 3vw, 44px) 0; display: flex; flex-direction: column; }
+.eyebrow { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--soft); }
+h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(48px, 6vw, 92px); line-height: 0.95; margin: 28px 0 26px; letter-spacing: -0.01em; }
+h1 .l { display: block; overflow: hidden; padding-bottom: 0.06em; }
+h1 .l > span { display: block; }
+h1 em { font-style: italic; }
+.lede { font-size: 13px; line-height: 1.7; max-width: 34ch; color: var(--soft); }
+.cue { margin-top: 36px; font-size: 10.5px; letter-spacing: 0.2em; display: flex; align-items: center; gap: 12px; }
+.cue i { width: 1px; height: 38px; background: var(--ink); display: block; transform-origin: top; animation: cue 2.2s ease-in-out infinite; }
+@keyframes cue { 0% { transform: scaleY(0); } 50% { transform: scaleY(1); } 100% { transform: scaleY(1); opacity: 0; } }
+
+.cap {
+  left: clamp(16px, 3vw, 36px); bottom: clamp(16px, 4vh, 40px);
+  max-width: 420px; padding: 16px 18px; background: var(--paper); border: 1px solid var(--ink);
+  visibility: hidden; opacity: 0;
+}
+.cap .no { font-size: 10.5px; letter-spacing: 0.14em; color: var(--soft); text-transform: uppercase; }
+.cap .say { font-family: var(--serif); font-size: 21px; line-height: 1.25; margin-top: 8px; }
+
+#rail {
+  position: fixed; z-index: 2; right: clamp(16px, 3vw, 36px); top: 50%; transform: translateY(-50%);
+  list-style: none; display: flex; flex-direction: column; gap: 9px; align-items: flex-end;
+}
+#rail li { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--soft); padding: 4px 7px; border: 1px solid transparent; background: transparent; transition: all 0.3s; }
+#rail li.on { color: var(--ink); border-color: var(--ink); background: var(--paper); }
+
+#loading { position: fixed; inset: 0; z-index: 5; background: var(--paper); display: grid; place-items: center; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; transition: opacity 0.8s, visibility 0.8s; }
+#loading.done { opacity: 0; visibility: hidden; }
+
+@media (max-width: 760px) {
+  #hero { width: 100%; height: auto; padding-top: 76px; }
+  h1 { font-size: 48px; margin: 18px 0 14px; }
+  .wide, .cue { display: none; }
+  .chip { gap: 10px; font-size: 9px; padding: 6px 8px; }
+  .chip span:first-child { display: none; }
+  #rail { display: none; }
+  .cap { right: 16px; max-width: none; }
+  .cap .say { font-size: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cue i { animation: none; }
+}
