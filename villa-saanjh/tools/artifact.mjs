@@ -26,6 +26,7 @@ const keep = head
   .filter((l) => !/<meta charset|<meta name="viewport"|lenis\.css|css\/style\.css|<link rel="icon"/.test(l))
   .join('\n');
 html = `${keep.trim()}
+<script>window.__packed = true;</script>
 <style>
 /* Lenis */
 ${lenisCss.trim()}
@@ -45,5 +46,16 @@ const add = async (dir) => {
   }
 };
 for (const d of ['js', 'assets', 'bake', 'models']) await add(d);
+// the host serves only standard web types: wrap .glb and .hdr as base64 in .json (js/files.js unwraps them)
+const TYPE = { '.glb': 'model/gltf-binary', '.hdr': 'image/vnd.radiance' };
+for (const p of Object.keys(files)) {
+  const ext = p.slice(p.lastIndexOf('.'));
+  if (!TYPE[ext]) continue;
+  const packed = join(OUT, 'packed', p + '.json');
+  await mkdir(dirname(packed), { recursive: true });
+  await writeFile(packed, JSON.stringify({ type: TYPE[ext], b64: (await readFile(files[p])).toString('base64') }));
+  delete files[p];
+  files[p + '.json'] = packed;
+}
 await writeFile(join(OUT, 'files.json'), JSON.stringify(files, null, 1));
 console.log(`wrote ${relative(ROOT, OUT)}/index.html and ${Object.keys(files).length} files`);

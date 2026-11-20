@@ -12,6 +12,7 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { CUT, ZONE_PLANES, setZoneReveal, loadTextures, makeMaterials, withLightmap, inkify } from './materials.js';
 import { loadModels } from './models.js';
+import { binaryUrl } from './files.js';
 import { cementTile, wallTile, blackMarble, jali, mosaic, ripples, painting } from './patterns.js';
 import { buildHouse } from './house.js';
 import { buildSheet } from './sheet.js';
@@ -186,7 +187,7 @@ async function loadBake() {
     t.colorSpace = THREE.SRGBColorSpace;
     lms[name] = { tex: t, intensity: d.scale * Math.PI };
   }));
-  const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync('bake/' + meta.glb);
+  const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(await binaryUrl('bake/' + meta.glb));
   const cache = new Map();
   const swaps = [];
   gltf.scene.traverse((o) => {
@@ -223,7 +224,7 @@ async function loadBake() {
   // a 360 capture from inside each zone, for reflections
   const envs = {};
   for (const [zone, file] of Object.entries(meta.env || {})) {
-    const hdr = await new RGBELoader().loadAsync('bake/' + file);
+    const hdr = await new RGBELoader().loadAsync(await binaryUrl('bake/' + file));
     hdr.mapping = THREE.EquirectangularReflectionMapping;
     envs[zone] = pmrem.fromEquirectangular(hdr).texture;
     hdr.dispose();

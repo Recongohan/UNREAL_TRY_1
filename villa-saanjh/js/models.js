@@ -13,6 +13,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { binaryUrl } from './files.js';
 
 export const PLACEMENTS = [
   // (model, x, n, turn in degrees: 0 faces south, 90 faces east; scale, zone, variant, bake)
@@ -46,7 +47,7 @@ export async function loadModels(base = 'models/') {
   const out = [];
   let i = 0;
   for (const P of PLACEMENTS) {
-    cache[P.model] ??= loader.loadAsync(`${base}${P.model}.glb`);
+    cache[P.model] ??= binaryUrl(`${base}${P.model}.glb`).then((u) => loader.loadAsync(u));
     const gltf = await cache[P.model];
     const vmap = P.variant ? variantMap(gltf.parser.json, P.variant) : new Map();
     // stand the model on the floor, centred on its footprint
