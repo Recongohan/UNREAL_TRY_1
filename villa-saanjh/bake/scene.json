@@ -2,39 +2,45 @@
  "glb": "room.glb",
  "lightmaps": {
   "lm_pool": {
-   "file": "lm_pool.png",
-   "scale": 2.1909501552581787
+   "file": "lm_pool.webp",
+   "scale": 2.2216672897338867
+  },
+  "lm_master": {
+   "file": "lm_master.webp",
+   "scale": 3.0450587272644043
   },
   "lm_dining": {
-   "file": "lm_dining.png",
-   "scale": 2.8507349491119385
+   "file": "lm_dining.webp",
+   "scale": 3.1518073081970215
   },
   "lm_foyer": {
-   "file": "lm_foyer.png",
-   "scale": 1.9433889389038086
+   "file": "lm_foyer.webp",
+   "scale": 2.481031894683838
   },
   "lm_entry": {
-   "file": "lm_entry.png",
-   "scale": 2.6011240482330322
+   "file": "lm_entry.webp",
+   "scale": 2.6824090480804443
   },
   "lm_gallery": {
-   "file": "lm_gallery.png",
-   "scale": 1.4387843608856201
+   "file": "lm_gallery.webp",
+   "scale": 1.6562906503677368
   }
  },
  "flat": {
-  "pool": 0.5313838720321655,
-  "dining": 0.4189549386501312,
-  "foyer": 0.34600648283958435,
-  "entry": 0.7386489510536194,
-  "gallery": 0.38358232378959656
+  "pool": 0.5558030009269714,
+  "master": 0.30729976296424866,
+  "dining": 0.3972611725330353,
+  "foyer": 0.32889121770858765,
+  "entry": 0.7382878661155701,
+  "gallery": 0.34818020462989807
  },
  "env": {
   "entry": "env_entry.hdr",
   "foyer": "env_foyer.hdr",
   "dining": "env_dining.hdr",
   "pool": "env_pool.hdr",
-  "gallery": "env_gallery.hdr"
+  "gallery": "env_gallery.hdr",
+  "master": "env_master.hdr"
  },
  "exposure": 1.0
 }

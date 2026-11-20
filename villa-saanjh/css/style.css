@@ -10,7 +10,7 @@ html, body { background: var(--paper); color: var(--ink); }
 body { font-family: var(--mono); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
 
 #gl { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
-#track { height: 1600vh; }
+#track { height: 2100vh; }
 
 /* paper grain over the drawing; it fades as rooms turn real */
 #grain {
@@ -50,6 +50,15 @@ h1 em { font-style: italic; }
 }
 .cap .no { font-size: 10.5px; letter-spacing: 0.14em; color: var(--soft); text-transform: uppercase; }
 .cap .say { font-family: var(--serif); font-size: 21px; line-height: 1.25; margin-top: 8px; }
+
+#end {
+  inset: 0; display: grid; place-content: center; text-align: center; pointer-events: none;
+  visibility: hidden; opacity: 0; padding: 0 16px;
+  background: radial-gradient(ellipse 60% 50% at center, rgba(242, 239, 231, 0.94) 0%, rgba(242, 239, 231, 0.8) 50%, rgba(242, 239, 231, 0) 100%);
+}
+#end h2 { font-family: var(--serif); font-weight: 400; font-size: clamp(56px, 9vw, 128px); line-height: 0.95; margin: 18px 0 20px; }
+#end h2 em { font-style: italic; }
+#end .lede { margin: 0 auto; }
 
 #rail {
   position: fixed; z-index: 2; right: clamp(16px, 3vw, 36px); top: 50%; transform: translateY(-50%);

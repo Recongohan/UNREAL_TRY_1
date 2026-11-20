@@ -13,6 +13,7 @@
 //   05 dining     1.00 - 1.45   across the foyer, through the small arch, down the table to the pool
 //   06 pool       1.45 - 1.80   up to the French doors: the pool turns real outside
 //   07 gallery    1.80 - 2.10   back past the sideboard, through the arch, and west down the gallery
+//   08 master     2.10 - 2.75   on down the gallery, into the master bedroom, and to the window over the pool
 //
 // The numbers above are story time T. Scroll progress s (0 to 1) maps to T = s * LENGTH.
 
@@ -58,8 +59,8 @@ function glide(keys) {
   };
 }
 
-export const STOPS = { sheet: 0.06, lift: 0.32, land: 0.56, entry: 0.62, foyer: 1.0, dining: 1.45, pool: 1.8 };
-export const LENGTH = 2.1;
+export const STOPS = { sheet: 0.06, lift: 0.32, land: 0.56, entry: 0.62, foyer: 1.0, dining: 1.45, pool: 1.8, gallery: 2.1 };
+export const LENGTH = 2.75;
 
 export function makeRig(aspect) {
   const portrait = aspect < 0.9;
@@ -127,10 +128,20 @@ export function makeRig(aspect) {
     return [c(0), c(1)];
   };
 
+  // 08: down the gallery, right through the bedroom door, past the bed to the north window
+  const R8 = [[14.15, 6.4], [12.6, 6.15], [10.6, 6.25], [9.55, 7.15], [9.05, 8.35], [8.55, 9.4], [7.75, 10.55], [6.95, 11.55], [6.45, 12.2], [6.35, 12.45]];
+  const along8 = glide([[2.1, 0], [2.16, 0.08], [2.28, 0.36], [2.36, 0.48], [2.44, 0.55], [2.6, 0.84], [2.7, 0.97], [2.75, 1]]);
+  const yaw8 = glide([[2.1, 80], [2.17, 84], [2.24, 60], [2.31, 30], [2.37, 70], [2.45, 98], [2.55, 52], [2.64, 12], [2.75, 4]]);
+  const pitch8 = glide([[2.1, 1], [2.3, 0], [2.44, -7], [2.56, -2], [2.75, 1]]);
+
   function at(sIn) {
     const s = Math.min(LENGTH, Math.max(0, sIn * LENGTH));
-    const o = { s, cut: cut(s), dining: 0, pool: 0, gallery: 0 };
-    if (s > STOPS.dining) {
+    const o = { s, cut: cut(s), dining: 0, pool: 0, gallery: 0, master: 0 };
+    if (s > STOPS.gallery) {
+      const [x, n] = curve(R8, along8(s));
+      Object.assign(o, { fov: fovWalk, x, y: EYE, z: -n, yaw: yaw8(s) * deg, pitch: pitch8(s) * deg, dist: 9, door: 1, entry: 1, foyer: 1, floor: 0, dining: 1, pool: 1, gallery: 1 });
+      o.master = clamp01((s - 2.3) / 0.16);
+    } else if (s > STOPS.dining) {
       const [x, n] = curve(Q, along6(s));
       Object.assign(o, { fov: fovWalk, x, y: EYE, z: -n, yaw: yaw6(s) * deg, pitch: pitch6(s) * deg, dist: 9, door: 1, entry: 1, foyer: 1, floor: 0, dining: 1 });
       o.pool = clamp01((s - 1.55) / 0.17);

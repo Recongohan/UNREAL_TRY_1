@@ -8,8 +8,10 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
 import { PAPER, INK, GROUND_Y, SUN, POOL } from './plan.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
-import { CUT, ZONE_PLANES, setZoneReveal, loadTextures, makeMaterials, withLightmap } from './materials.js';
+import { CUT, ZONE_PLANES, setZoneReveal, loadTextures, makeMaterials, withLightmap, inkify } from './materials.js';
+import { loadModels } from './models.js';
 import { cementTile, wallTile, blackMarble, jali, mosaic, ripples, painting } from './patterns.js';
 import { buildHouse } from './house.js';
 import { buildSheet } from './sheet.js';
@@ -28,7 +30,7 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPrefere
 const DPR = Math.min(devicePixelRatio || 1, 2);
 renderer.setPixelRatio(DPR);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMapping = params.get('tone') === 'aces' ? THREE.ACESFilmicToneMapping : THREE.AgXToneMapping; // AgX matches Blender's view transform
 renderer.toneMappingExposure = 1.05;
 renderer.localClippingEnabled = true;
 renderer.shadowMap.enabled = true;
@@ -123,6 +125,24 @@ function assemble() {
   });
 }
 
+// real furniture models, inked like everything else
+async function placeModels() {
+  for (const m of await loadModels()) {
+    const thin = m.material.transparent || m.material.alphaTest > 0 || /leaf|leaves/i.test(m.material.name);
+    const mat = inkify(m.material.clone(), { thin });
+    const mesh = new THREE.Mesh(m.geometry, mat);
+    mesh.castShadow = mesh.receiveShadow = true;
+    mesh.userData.noBake = !m.bake;
+    house.add(mesh);
+    parts[m.key] = mesh;
+    // outlines for the furniture; plants are drawn by their silhouettes alone (their leaf edges would cost a million triangles)
+    if (m.bake) {
+      const e = new THREE.EdgesGeometry(m.geometry, 50).attributes.position.array;
+      if (e.length) house.add(inkLines('kit', m.zone, e));
+    }
+  }
+}
+
 // ---- baked light (Blender / Cycles) ----------------------------------------------------------
 // Everything the bake needs, for tools/bake.py: the meshes of the walked zones and
 // the rest of the house (which still blocks and bounces light), and the lights.
@@ -138,7 +158,7 @@ window.__bakeData = () => {
     const zone = leaf ? 'foyer' : zm.split('|')[0];
     const r = (a) => Array.from(a, (v) => Math.round(v * 1e4) / 1e4);
     out.meshes.push({
-      key, zone, mat, bake: zone !== 'rest',
+      key, zone, mat, bake: zone !== 'rest' && !mesh.userData.noBake,
       // leaves are built about their hinge; the bake places them open
       pivot: leaf ? [mesh.parent.position.x, mesh.parent.position.y, mesh.parent.position.z, OPEN_DOOR * mesh.parent.userData.sign] : null,
       position: r(P.array), normal: r(Nn.array), uv: UV ? r(UV.array) : null, index: g.index ? Array.from(g.index.array) : null,
@@ -166,7 +186,7 @@ async function loadBake() {
     t.colorSpace = THREE.SRGBColorSpace;
     lms[name] = { tex: t, intensity: d.scale * Math.PI };
   }));
-  const gltf = await new GLTFLoader().loadAsync('bake/' + meta.glb);
+  const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync('bake/' + meta.glb);
   const cache = new Map();
   const swaps = [];
   gltf.scene.traverse((o) => {
@@ -252,6 +272,9 @@ lamp(12.95, 1.3, 12.1, 0.8, 3, 0xffc78a, 6, 0.04);
 for (const lx of [10.2, 12.45, 14.7]) lamp(lx, 2.6, 6.5, 3, 6, 0xffc78a, 35, 0.12); // gallery lanterns
 for (const lx of [9.95, 13.05]) lamp(lx, 2.1, 7.6, 1, 3, 0xffc78a, 10, 0.06);
 for (const lx of [13.25, 15.25, 17.25]) lamp(lx, 2.35, 15.4, 1.5, 5, 0xffc78a, 18, 0.07); // terrace lanterns
+lamp(5.1, 2.9, 11.6, 10, 0, 0xffd6a8, 170, 0.25); // bedroom chandelier
+for (const sx of [-1, 1]) lamp(4.8 + sx * 1.38, 1.2, 8.48, 1.5, 4, 0xffc78a, 30, 0.12); // bedside lamps
+for (const ln of [11.25, 12.75]) lamp(9.6, 1.3, ln, 0.6, 3, 0xffc78a, 6, 0.04);
 
 // ---- sheet, rig, resize ------------------------------------------------------------------
 let rig, sheet, sheetGroup;
@@ -298,6 +321,7 @@ function draw(s) {
   setZoneReveal('dining', o.dining);
   setZoneReveal('pool', o.pool);
   setZoneReveal('gallery', o.gallery);
+  setZoneReveal('master', o.master);
   if (M.water.normalMap) M.water.normalMap.offset.set(o.s * 0.9, o.s * 0.35); // the water moves as you scroll
   const a = o.door * 1.62;
   if (a !== lastDoor) {
@@ -317,7 +341,7 @@ function draw(s) {
   grain.style.opacity = (0.5 * (1 - Math.max(o.entry * 0.5, o.foyer))).toFixed(3);
   if (baked) {
     renderer.toneMappingExposure = baked.meta.exposure;
-    const z = o.gallery > 0.25 ? 'gallery' : o.pool > 0.25 ? 'pool' : o.dining > 0.25 ? 'dining' : o.foyer > 0.25 ? 'foyer' : 'entry';
+    const z = o.master > 0.25 ? 'master' : o.gallery > 0.25 ? 'gallery' : o.pool > 0.25 ? 'pool' : o.dining > 0.25 ? 'dining' : o.foyer > 0.25 ? 'foyer' : 'entry';
     if (baked.envs[z] && scene.environment !== baked.envs[z]) {
       scene.environment = baked.envs[z];
       scene.environmentIntensity = 1;
@@ -340,7 +364,9 @@ caption('#cap-entry', T(0.54), T(0.68));
 caption('#cap-foyer', T(0.92), T(1.08));
 caption('#cap-dining', T(1.4), T(1.52));
 caption('#cap-pool', T(1.64), T(1.78));
-caption('#cap-gallery', T(1.94), null);
+caption('#cap-gallery', T(1.94), T(2.12));
+caption('#cap-master', T(2.42), T(2.6));
+tl.fromTo('#end', { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: T(0.08) }, T(2.68));
 
 // with reduced motion the page moves in still frames, one per stop
 const STILLS = [0, STOPS.sheet + 0.1, STOPS.land, STOPS.foyer, LENGTH].map(T);
@@ -363,6 +389,7 @@ async function boot() {
   const TX = await loadTextures(ANISO);
   M = makeMaterials(TX, { cement: cementTile(ANISO), wallTile: wallTile(ANISO), blackMarble: blackMarble(ANISO), jali: jali(), mosaic: mosaic(ANISO), ripples: ripples(), painting: painting() });
   assemble();
+  await placeModels();
   if (!params.has('nobake')) baked = await loadBake();
   if (baked) {
     // the lightmaps hold all the light now: real-time lights and shadows go

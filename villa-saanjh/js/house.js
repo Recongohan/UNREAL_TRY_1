@@ -214,11 +214,11 @@ function chandelier(kit, zone, x, n, ceiling, bottom, k = 1) {
 // A dining chair in the Don Joao manner: navy velvet on a gilt frame with an
 // arched, buttoned back. (cx, cn) is the seat centre; `face` turns it about y
 // so that 0 faces north.
-function chair(kit, zone, cx, cn, face) {
+function chair(kit, zone, cx, cn, face, fabric = 'velvet', k = 1) {
   const parts = [];
   const g = (geo, mat, edges = true, angle = 40) => parts.push([geo, mat, edges, angle]);
   // seat
-  g(new THREE.BoxGeometry(0.5, 0.09, 0.48).translate(0, 0.47, 0), 'velvet');
+  g(new THREE.BoxGeometry(0.5, 0.09, 0.48).translate(0, 0.47, 0), fabric);
   g(new THREE.BoxGeometry(0.52, 0.05, 0.5).translate(0, 0.41, 0), 'gold');
   // legs, turned
   const L = [[0, 0], [0.025, 0], [0.018, 0.12], [0.028, 0.25], [0.02, 0.4], [0, 0.4]].map(([r, y]) => new THREE.Vector2(r, y));
@@ -226,7 +226,7 @@ function chair(kit, zone, cx, cn, face) {
   // back: an arched velvet panel in a gilt frame
   const s = new THREE.Shape();
   s.moveTo(-0.22, 0); s.lineTo(0.22, 0); s.lineTo(0.22, 0.42); s.absarc(0, 0.42, 0.22, 0, Math.PI, false); s.lineTo(-0.22, 0);
-  g(new THREE.ExtrudeGeometry(s, { depth: 0.06, bevelEnabled: false, curveSegments: 16 }).translate(0, 0.52, 0.2), 'velvet', true, 30);
+  g(new THREE.ExtrudeGeometry(s, { depth: 0.06, bevelEnabled: false, curveSegments: 16 }).translate(0, 0.52, 0.2), fabric, true, 30);
   const f = new THREE.Shape();
   f.moveTo(-0.25, 0); f.lineTo(0.25, 0); f.lineTo(0.25, 0.42); f.absarc(0, 0.42, 0.25, 0, Math.PI, false); f.lineTo(-0.25, 0);
   const hole = new THREE.Path();
@@ -234,19 +234,21 @@ function chair(kit, zone, cx, cn, face) {
   f.holes.push(hole);
   g(new THREE.ExtrudeGeometry(f, { depth: 0.07, bevelEnabled: false, curveSegments: 16 }).translate(0, 0.5, 0.195), 'gold', true, 30);
   // the chair faces -z (north) at face = 0; its back is at +z
-  const m = new THREE.Matrix4().makeRotationY(face).premultiply(new THREE.Matrix4().makeTranslation(cx, 0, -cn));
+  const m = new THREE.Matrix4().makeScale(k, k, k).premultiply(new THREE.Matrix4().makeRotationY(face)).premultiply(new THREE.Matrix4().makeTranslation(cx, 0, -cn));
   for (const [geo, mat, edges, angle] of parts) kit.geo(mat, geo.applyMatrix4(m), { zone, edges, angle });
 }
 
 // A gathered curtain hanging from `top` to the floor, `width` wide, pleated.
 // It hangs at plan (u, n) on a wall that runs east-west, extending in direction `dir` along x.
-function curtain(kit, zone, u, n, dir, width, top) {
+function curtain(kit, zone, u, n, dir, width, top, mat = 'drape', along = 'x') {
   const cols = 18, rows = 14, pos = [], idx = [], uv = [];
   for (let j = 0; j <= rows; j++) for (let i = 0; i <= cols; i++) {
     const t = i / cols, v = j / rows;
-    const x = u + dir * t * width;
-    const z = -(n - 0.06 - 0.05 * Math.sin(t * Math.PI * 7) * (0.6 + 0.4 * v));
-    pos.push(x, top * v, z);
+    const a = u + dir * t * width;
+    const off = n - 0.06 - 0.05 * Math.sin(t * Math.PI * 7) * (0.6 + 0.4 * v);
+    // along 'x': the wall runs east-west at n; along 'n': it runs north-south at x = n (u is then an n value)
+    if (along === 'x') pos.push(a, top * v, -off);
+    else pos.push(n + 0.06 + 0.05 * Math.sin(t * Math.PI * 7) * (0.6 + 0.4 * v), top * v, -a);
     uv.push(t * width * 3, v * top);
   }
   for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
@@ -258,9 +260,14 @@ function curtain(kit, zone, u, n, dir, width, top) {
   g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
   g.setIndex(idx);
   g.computeVertexNormals();
-  kit.geo('drape', g, { zone, edges: false });
-  kit.line(zone, [[u, 0.01, -(n - 0.06)], [u, top, -(n - 0.06)]]);
-  kit.line(zone, [[u + dir * width, 0.01, -(n - 0.06)], [u + dir * width, top, -(n - 0.06)]]);
+  kit.geo(mat, g, { zone, edges: false });
+  if (along === 'x') {
+    kit.line(zone, [[u, 0.01, -(n - 0.06)], [u, top, -(n - 0.06)]]);
+    kit.line(zone, [[u + dir * width, 0.01, -(n - 0.06)], [u + dir * width, top, -(n - 0.06)]]);
+  } else {
+    kit.line(zone, [[n + 0.06, 0.01, -u], [n + 0.06, top, -u]]);
+    kit.line(zone, [[n + 0.06, 0.01, -(u + dir * width)], [n + 0.06, top, -(u + dir * width)]]);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -332,7 +339,8 @@ export function buildHouse() {
   arch('x', 14.7, 15.0, 20.3, 23.2, 5.2, 2.5, true, 'render'); // stair hall, over the pool
   arch('x', 14.7, 15.0, 13.35, 15.15, 2.45, 0, 'open', 'render'); // dining: French doors to the terrace, one standing open
   arch('x', 14.7, 15.0, 15.35, 17.15, 2.45, 0, true, 'render');
-  for (const [a0, a1] of [[1.2, 3.8], [5.0, 7.6]]) arch('x', 14.7, 15.0, a0, a1, 2.2, 0, true, 'render'); // master
+  arch('x', 14.7, 15.0, 1.2, 3.8, 2.2, 0, true, 'render'); // master: a window, and French doors standing open to the terrace
+  arch('x', 14.7, 15.0, 5.0, 7.6, 2.2, 0, 'open', 'render');
   arch('n', 0, 0.3, 2.0, 5.8, 1.9, 0.6, true, 'render'); // bedroom 2, west
   arch('n', 0, 0.3, 9.4, 13.4, 1.9, 0.6, true, 'render'); // master, west
   // first floor windows on the street front (dark behind the glass)
@@ -545,9 +553,7 @@ export function buildHouse() {
   // powder room door, standing open
   kit.box('teak', 18.6, 1.65, 18.65, 2.5, 0, 2.65, { zone: Z });
 
-  // a velvet bench against the tiled wall, by the powder room
-  kit.box('velvet', 16.7, 2.75, 18.3, 3.2, 0.38, 0.5, { zone: Z });
-  for (const [bx, bn] of [[16.78, 2.8], [18.22, 2.8], [16.78, 3.15], [18.22, 3.15]]) kit.geo('gold', at(new THREE.CylinderGeometry(0.025, 0.018, 0.38, 8), bx, 0.19, bn), { zone: Z, edges: false });
+  // (a pair of damask chairs stands here: see models.js)
 
   // cornices: at the gallery lintel and under the high ceiling
   const cornice = (y, h, d) => {
@@ -559,7 +565,6 @@ export function buildHouse() {
   cornice(3.6, 0.1, 0.06);
 
   // plants
-  pottedPalm(kit, 23.15, 7.35, { zone: Z, seed: 5, h: 2.4 });
   pottedPalm(kit, 18.75, 9.3, { zone: Z, seed: 9, h: 2.1 });
 
   // ---- the stair: black marble, a teak rail, and a brass jali between the flights ----------
@@ -733,7 +738,105 @@ export function buildHouse() {
   for (const [hx, dir] of [[13.35, 1], [15.15, -1]]) kit.box('teak', hx - (dir > 0 ? 0 : 0.05), 14.75, hx + (dir > 0 ? 0.05 : 0), 15.6, 0, 2.4, { zone: D });
   // two palms in the corners, by the doors
   pottedPalm(kit, 12.95, 13.2, { zone: D, seed: 21, h: 2.0 });
-  pottedPalm(kit, 17.5, 13.3, { zone: D, seed: 22, h: 2.0 });
+
+
+  // ---- the master bedroom -----------------------------------------------------------------
+  const MB = 'master';
+  // a big wool rug under the bed, with a navy border
+  kit.box('rug', 2.4, 8.7, 7.2, 12.9, 0, 0.012, { zone: MB });
+  kit.box('navy', 2.55, 8.85, 7.05, 12.75, 0.012, 0.014, { zone: MB, edges: false });
+  kit.box('rug', 2.7, 9.0, 6.9, 12.6, 0.012, 0.016, { zone: MB, edges: false });
+  // gilt panels on the walls, a dado rail and a cornice
+  for (const [u0, u1] of [[0.7, 2.6], [7.0, 8.2]]) frameOn('x', 8.1, u0, u1, 0.3, 3.2, 1, MB);
+  frameOn('x', 8.1, 2.9, 6.7, 2.55, 3.25, 1, MB);
+  for (const [u0, u1] of [[9.0, 9.9], [13.6, 14.4]]) frameOn('n', 0.3, u0, u1, 0.3, 3.2, 1, MB);
+  for (const [u0, u1] of [[8.4, 8.9], [10.2, 10.8], [13.3, 14.4]]) frameOn('n', 9.9, u0, u1, 0.3, 3.2, -1, MB);
+  kit.box('plaster', 0.3, 8.1, 9.9, 8.22, 3.4, 3.6, { zone: MB });
+  kit.box('plaster', 0.3, 14.58, 9.9, 14.7, 3.4, 3.6, { zone: MB });
+  kit.box('plaster', 0.3, 8.1, 0.42, 14.7, 3.4, 3.6, { zone: MB });
+  kit.box('plaster', 9.78, 8.1, 9.9, 14.7, 3.4, 3.6, { zone: MB });
+
+  // the bed: tufted green velvet headboard in a carved gilt frame, white linen, a bench at the foot
+  const BX = 4.8, BN0 = 8.2, BL = 2.25, BWD = 2.0;
+  {
+    const hs = new THREE.Shape();
+    hs.moveTo(-1.15, 0); hs.lineTo(1.15, 0); hs.lineTo(1.15, 1.05);
+    hs.bezierCurveTo(1.0, 1.25, 0.45, 1.2, 0.3, 1.38);
+    hs.absarc(0, 1.38, 0.3, 0, Math.PI, false);
+    hs.bezierCurveTo(-0.45, 1.2, -1.0, 1.25, -1.15, 1.05);
+    hs.lineTo(-1.15, 0);
+    const panel = new THREE.ExtrudeGeometry(hs, { depth: 0.1, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.03, bevelSegments: 2, curveSegments: 18 });
+    panel.translate(0, 0.55, 0);
+    panel.applyMatrix4(new THREE.Matrix4().makeTranslation(BX, 0, -(BN0 + 0.02)).multiply(new THREE.Matrix4().makeRotationY(Math.PI)));
+    kit.geo('velvetGreen', panel, { zone: MB, angle: 30 });
+    const fr = new THREE.Shape();
+    fr.moveTo(-1.27, 0); fr.lineTo(1.27, 0); fr.lineTo(1.27, 1.12);
+    fr.bezierCurveTo(1.1, 1.36, 0.5, 1.3, 0.38, 1.46);
+    fr.absarc(0, 1.46, 0.38, 0, Math.PI, false);
+    fr.bezierCurveTo(-0.5, 1.3, -1.1, 1.36, -1.27, 1.12);
+    fr.lineTo(-1.27, 0);
+    fr.holes.push(new THREE.Path(hs.getPoints(18).map((p) => new THREE.Vector2(p.x * 0.97, p.y * 0.97 + 0.02)).reverse()));
+    const frame = new THREE.ExtrudeGeometry(fr, { depth: 0.08, bevelEnabled: false, curveSegments: 18 });
+    frame.translate(0, 0.5, 0);
+    frame.applyMatrix4(new THREE.Matrix4().makeTranslation(BX, 0, -(BN0 + 0.0)).multiply(new THREE.Matrix4().makeRotationY(Math.PI)));
+    kit.geo('gold', frame, { zone: MB, angle: 30 });
+    // buttons on the headboard
+    for (let r = 0; r < 4; r++) for (let c = -4; c <= 4; c++) {
+      if ((r + c) % 2) continue;
+      kit.geo('gold', at(new THREE.SphereGeometry(0.018, 6, 4), BX + c * 0.24, 0.85 + r * 0.24, BN0 + 0.15), { zone: MB, edges: false });
+    }
+  }
+  kit.box('velvetGreen', BX - BWD / 2, BN0 + 0.1, BX + BWD / 2, BN0 + BL, 0.12, 0.42, { zone: MB });
+  kit.box('linen', BX - BWD / 2 + 0.03, BN0 + 0.12, BX + BWD / 2 - 0.03, BN0 + BL - 0.02, 0.42, 0.62, { zone: MB });
+  kit.box('linen', BX - BWD / 2 - 0.02, BN0 + 0.75, BX + BWD / 2 + 0.02, BN0 + BL + 0.03, 0.55, 0.68, { zone: MB });
+  kit.box('velvetGreen', BX - BWD / 2 - 0.03, BN0 + BL - 0.55, BX + BWD / 2 + 0.03, BN0 + BL + 0.04, 0.6, 0.7, { zone: MB });
+  for (const px of [-0.5, 0.5]) {
+    const pil = new THREE.SphereGeometry(1, 20, 12).scale(0.36, 0.11, 0.2);
+    kit.geo('linen', at(pil, BX + px, 0.76, BN0 + 0.45), { zone: MB, edges: false });
+    kit.geo('velvetGreen', at(new THREE.SphereGeometry(1, 16, 10).scale(0.22, 0.12, 0.08), BX + px * 0.75, 0.85, BN0 + 0.68), { zone: MB, edges: false });
+  }
+  for (const [lx, ln] of [[BX - BWD / 2 + 0.05, BN0 + BL - 0.05], [BX + BWD / 2 - 0.05, BN0 + BL - 0.05]]) kit.geo('gold', at(new THREE.CylinderGeometry(0.04, 0.03, 0.12, 10), lx, 0.06, ln), { zone: MB, edges: false });
+  // the bench at the foot
+  kit.box('velvetGreen', BX - 0.8, BN0 + BL + 0.25, BX + 0.8, BN0 + BL + 0.7, 0.38, 0.5, { zone: MB });
+  for (const [lx, ln] of [[-0.72, 0.3], [0.72, 0.3], [-0.72, 0.65], [0.72, 0.65]]) kit.geo('gold', at(new THREE.CylinderGeometry(0.025, 0.018, 0.38, 8), BX + lx, 0.19, BN0 + BL + ln), { zone: MB, edges: false });
+  // nightstands and lamps
+  for (const sx of [-1, 1]) {
+    const nx = BX + sx * (BWD / 2 + 0.38);
+    kit.box('teak', nx - 0.28, BN0 + 0.05, nx + 0.28, BN0 + 0.5, 0.1, 0.62, { zone: MB });
+    kit.box('marbleWhite', nx - 0.3, BN0 + 0.04, nx + 0.3, BN0 + 0.52, 0.62, 0.65, { zone: MB });
+    kit.box('gold', nx - 0.08, BN0 + 0.5, nx + 0.08, BN0 + 0.52, 0.42, 0.44, { zone: MB, edges: false });
+    kit.geo('porcelain', at(new THREE.LatheGeometry([[0, 0], [0.09, 0], [0.12, 0.08], [0.1, 0.22], [0.03, 0.3], [0.025, 0.42], [0, 0.42]].map(([r, y]) => new THREE.Vector2(r, y)), 20), nx, 0.65, BN0 + 0.28), { zone: MB, angle: 40 });
+    kit.geo('shade', at(new THREE.CylinderGeometry(0.13, 0.2, 0.26, 24, 1, true), nx, 1.18, BN0 + 0.28), { zone: MB, angle: 40 });
+  }
+  chandelier(kit, MB, 5.1, 11.6, 3.6, 2.55, 0.7);
+
+  // by the west window: two armchairs and a small round table
+  // (two peacock-velvet armchairs stand here: see models.js)
+  kit.geo('gold', at(new THREE.LatheGeometry([[0, 0], [0.22, 0], [0.06, 0.06], [0.04, 0.5], [0.12, 0.56], [0, 0.56]].map(([r, y]) => new THREE.Vector2(r, y)), 16), 1.05, 0, 11.65), { zone: MB, angle: 45 });
+  kit.geo('marbleWhite', at(new THREE.CylinderGeometry(0.32, 0.32, 0.04, 32), 1.05, 0.58, 11.65), { zone: MB });
+  kit.geo('porcelain', at(new THREE.LatheGeometry([[0, 0], [0.05, 0], [0.08, 0.08], [0.04, 0.2], [0.05, 0.24], [0, 0.24]].map(([r, y]) => new THREE.Vector2(r, y)), 16), 1.05, 0.6, 11.65), { zone: MB, angle: 40 });
+
+  // east wall: a dresser under an arched gilt mirror
+  kit.box('teak', 9.35, 11.0, 9.9, 13.0, 0.12, 0.85, { zone: MB });
+  kit.box('marbleWhite', 9.32, 10.95, 9.9, 13.05, 0.85, 0.89, { zone: MB });
+  for (const [u0, u1] of [[11.1, 11.95], [12.05, 12.9]]) for (const [ya, yb] of [[0.18, 0.5], [0.52, 0.82]]) kit.box('teak', 9.32, u0, 9.35, u1, ya, yb, { zone: MB });
+  kit.geo('mirror', archPane(11.25, 12.75, 1.2, 2.45, 'n', 9.86).applyMatrix4(new THREE.Matrix4().makeRotationY(Math.PI).premultiply(new THREE.Matrix4().makeTranslation(2 * 9.86, 0, -2 * 12.0))), { zone: MB });
+  kit.box('gold', 9.82, 11.15, 9.9, 11.25, 1.15, 2.45, { zone: MB, edges: false });
+  kit.box('gold', 9.82, 12.75, 9.9, 12.85, 1.15, 2.45, { zone: MB, edges: false });
+  kit.box('gold', 9.82, 11.15, 9.9, 12.85, 1.12, 1.2, { zone: MB, edges: false });
+  lantern(kit, 9.6, 1.12, 11.25, { zone: MB, scale: 0.6 });
+  lantern(kit, 9.6, 1.12, 12.75, { zone: MB, scale: 0.6 });
+
+  // curtains: deep red velvet beside each window
+  for (const [c0, c1] of [[1.2, 3.8], [5.0, 7.6]]) {
+    curtain(kit, MB, c0 - 0.05, 14.62, -1, 0.42, 3.35, 'drapeRed');
+    curtain(kit, MB, c1 + 0.05, 14.62, 1, 0.42, 3.35, 'drapeRed');
+  }
+  curtain(kit, MB, 9.35, 0.3, -1, 0.5, 3.35, 'drapeRed', 'n');
+  curtain(kit, MB, 13.45, 0.3, 1, 0.5, 3.35, 'drapeRed', 'n');
+  for (const [hx, dir] of [[5.0, 1], [7.6, -1]]) kit.box('teak', hx - (dir > 0 ? 0 : 0.05), 14.75, hx + (dir > 0 ? 0.05 : 0), 16.0, 0, 2.3, { zone: 'pool' });
+
+  pottedPalm(kit, 0.85, 8.7, { zone: MB, seed: 52, h: 2.0 });
 
   // ---- the gallery -----------------------------------------------------------------------
   const Gz = 'gallery';
@@ -766,7 +869,7 @@ export function buildHouse() {
   kit.geo('porcelain', at(new THREE.LatheGeometry([[0, 0], [0.08, 0], [0.13, 0.12], [0.12, 0.3], [0.05, 0.4], [0.07, 0.44], [0, 0.44]].map(([r, y]) => new THREE.Vector2(r, y)), 24), 11.3, 0.9, 5.32), { zone: Gz, angle: 40 });
   // three lanterns hung from the ceiling, and a palm in the far corner
   for (const lx of [10.2, 12.45, 14.7]) lantern(kit, lx, 2.55, 6.5, { zone: Gz, scale: 1.0, hanging: 0.63 });
-  pottedPalm(kit, 8.6, 5.5, { zone: Gz, seed: 31, h: 2.1 });
+
 
   // ---- the terrace and the pool --------------------------------------------------------
   const PZ = 'pool';

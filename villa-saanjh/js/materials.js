@@ -149,7 +149,7 @@ export async function loadTextures(anisotropy) {
   const out = {};
   await Promise.all(
     Object.entries(FILES).map(async ([key, [d, n, r]]) => {
-      const [map, normalMap, roughnessMap] = await Promise.all([d, n, r].map((f) => loader.loadAsync(TEX + f + '.jpg')));
+      const [map, normalMap, roughnessMap] = await Promise.all([d, n, r].map((f) => loader.loadAsync(TEX + f + '.webp')));
       map.colorSpace = THREE.SRGBColorSpace;
       for (const t of [map, normalMap, roughnessMap]) {
         t.wrapS = t.wrapT = THREE.RepeatWrapping;
@@ -220,6 +220,10 @@ export function makeMaterials(T, P) {
     cascade: inkify(new THREE.MeshStandardMaterial({ color: '#e8f5f8', roughness: 0.1, transparent: true, opacity: 0.6, depthWrite: false, emissive: new THREE.Color('#9fc6d0'), emissiveIntensity: 0.25 }), { glassInk: 0, thin: true }),
     art: thinStd({ map: P.painting, roughness: 0.85 }),
     linen: std({ color: '#ecebe6', roughness: 0.95 }),
+    velvetGreen: inkify(new THREE.MeshPhysicalMaterial({ color: '#1f4a35', roughness: 0.75, sheen: 1, sheenColor: new THREE.Color('#5f9a78'), sheenRoughness: 0.5 })),
+    drapeRed: inkify(new THREE.MeshPhysicalMaterial({ color: '#5a1a22', roughness: 0.8, sheen: 1, sheenColor: new THREE.Color('#b0505e'), sheenRoughness: 0.45 }), { thin: true }),
+    rug: std({ color: '#d8ccb6', roughness: 1 }),
+    shade: thinStd({ color: '#f6ead6', emissive: new THREE.Color('#ffcf96'), emissiveIntensity: 1.2, roughness: 0.9 }),
     umbrella: inkify(new THREE.MeshStandardMaterial({ color: '#1d2f52', roughness: 0.9 }), { thin: true }),
     porcelain: std({ color: '#f1efe9', roughness: 0.2, envMapIntensity: 1.2 }),
     clay: std({ color: '#a8673f', roughness: 0.85 }),
@@ -233,3 +237,5 @@ export function makeMaterials(T, P) {
   };
   return M;
 }
+
+export { inkify };

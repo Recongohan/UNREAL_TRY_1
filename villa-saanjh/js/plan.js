@@ -47,6 +47,7 @@ export const ROOMS = [
 // foyer (whose box also covers the stair hall next to it).
 export const ZONES = [
   { key: 'dining', x0: 12.55, x1: 17.95, n0: 7.98, n1: 14.9, y0: -0.2, y1: 3.75, dir: [0, 1], from: 7.98, len: 7.0 },
+  { key: 'master', x0: 0.25, x1: 9.95, n0: 7.98, n1: 14.9, y0: -0.2, y1: 3.75, dir: [-1, 0], from: 9.95, len: 9.8 },
   { key: 'gallery', x0: 7.95, x1: 16.05, n0: 4.95, n1: 7.98, y0: -0.2, y1: 3.75, dir: [-1, 0], from: 16.05, len: 8.1 },
   // the terrace and pool, and the north face of the house seen from them
   { key: 'pool', x0: -1.5, x1: 17.6, n0: 14.95, n1: 26.0, y0: -2.0, y1: 8.4, dir: [0, 1], from: 14.95, len: 11 },
@@ -58,7 +59,7 @@ export const ZONES = [
 // swing in degrees from east (the leaf is drawn open at `open`).
 export const DOORS = [
   { x: 8.0, n: 5.8, w: 1.1, open: 180, closed: 90, sweep: [90, 180] }, // bedroom 2
-  { x: 8.5, n: 8.0, w: 1.1, open: 90, closed: 0, sweep: [0, 90] }, // master
+  { x: 9.6, n: 8.0, w: 1.1, open: 90, closed: 180, sweep: [90, 180] }, // master
   { x: 9.0, n: 5.0, w: 1.0, open: -90, closed: 0, sweep: [-90, 0] }, // wardrobe
   { x: 12.5, n: 5.0, w: 1.0, open: -90, closed: 0, sweep: [-90, 0] }, // bath 2
   { x: 10.0, n: 9.0, w: 1.0, open: 0, closed: 90, sweep: [0, 90] }, // master bath

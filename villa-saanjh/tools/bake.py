@@ -56,7 +56,8 @@ MATS = {
     "ceramic": dict(c="#244a6b", r=0.25), "flowerWhite": dict(c="#f3ede6", r=0.7), "flowerPink": dict(c="#d98aa4", r=0.7),
     "flowerPlum": dict(c="#7d3f6e", r=0.7), "leaf": dict(c="#3f5a2c", r=0.7), "trunk": dict(c="#6b5a48", r=1),
     "water": dict(c="#ffffff", r=0.0, glass=True), "cascade": dict(c="#ffffff", r=0.0, glass=True), "mosaic": dict(c="#2f86ad", r=0.12),
-    "art": dict(c="#9c6e5a", r=0.85), "linen": dict(c="#ecebe6", r=0.95), "umbrella": dict(c="#1d2f52", r=0.9),
+    "art": dict(c="#9c6e5a", r=0.85), "velvetGreen": dict(c="#1f4a35", r=0.75, sheen=1), "drapeRed": dict(c="#5a1a22", r=0.8, sheen=1),
+    "rug": dict(c="#d8ccb6", r=1), "shade": dict(c="#f6ead6", r=0.9, e=("#ffcf96", 6)), "linen": dict(c="#ecebe6", r=0.95), "umbrella": dict(c="#1d2f52", r=0.9),
 }
 NO_BAKE = {"gold", "mirror", "jali", "iron", "crystal", "lampGlass", "glass", "night", "flowerWhite", "flowerPink", "flowerPlum", "leaf", "water", "cascade"}
 
@@ -325,7 +326,7 @@ for zone, objs in atlases.items():
 
 # ---- 360 captures for reflections -----------------------------------------------------------
 PROBES = {"entry": (26.2, 1.6, 5.25), "foyer": (20.6, 1.7, 5.0), "dining": (15.25, 1.6, 9.6),
-          "pool": (12.0, 1.4, 17.5), "gallery": (12.5, 1.6, 6.5)}  # (x, y, n)
+          "pool": (12.0, 1.4, 17.5), "gallery": (12.5, 1.6, 6.5), "master": (5.6, 1.6, 12.2)}  # (x, y, n)
 envs = {}
 cd = bpy.data.cameras.new("probe")
 cd.type = "PANO"
