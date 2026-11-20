@@ -11,6 +11,8 @@
 //   03 entry      0.56 - 0.62   the portico turns to stone and lamplight
 //   04 foyer      0.62 - 1.00   up the steps, through the door, into the double-height hall
 //   05 dining     1.00 - 1.45   across the foyer, through the small arch, down the table to the pool
+//   06 pool       1.45 - 1.80   up to the French doors: the pool turns real outside
+//   07 gallery    1.80 - 2.10   back past the sideboard, through the arch, and west down the gallery
 //
 // The numbers above are story time T. Scroll progress s (0 to 1) maps to T = s * LENGTH.
 
@@ -56,8 +58,8 @@ function glide(keys) {
   };
 }
 
-export const STOPS = { sheet: 0.06, lift: 0.32, land: 0.56, entry: 0.62, foyer: 1.0 };
-export const LENGTH = 1.45;
+export const STOPS = { sheet: 0.06, lift: 0.32, land: 0.56, entry: 0.62, foyer: 1.0, dining: 1.45, pool: 1.8 };
+export const LENGTH = 2.1;
 
 export function makeRig(aspect) {
   const portrait = aspect < 0.9;
@@ -112,10 +114,28 @@ export function makeRig(aspect) {
   };
   const floorAt = (x) => (x >= 28.4 ? GROUND_Y : x <= 27.6 ? 0 : GROUND_Y * smooth((x - 27.6) / 0.8));
 
+  // 06 and 07: to the doors, then round the table and into the gallery
+  // out through the open door onto the terrace, back in, down the west side and through the arch
+  const Q = [[15.25, 8.75], [16.55, 9.6], [16.85, 11.6], [16.1, 13.6], [14.3, 14.2], [14.2, 15.6], [14.05, 16.0], [14.2, 15.5], [14.15, 14.1], [13.65, 12.6], [13.6, 10.6], [13.8, 9.0], [14.45, 7.95], [14.4, 6.85], [14.15, 6.4]];
+  const along6 = glide([[1.45, 0], [1.5, 0.04], [1.62, 0.36], [1.68, 0.41], [1.76, 0.43], [1.84, 0.62], [1.94, 0.82], [2.02, 0.95], [2.1, 1]]);
+  const yaw6 = glide([[1.45, 0], [1.52, -8], [1.58, 15], [1.63, 35], [1.7, 52], [1.76, 60], [1.81, 150], [1.87, 178], [1.93, 172], [1.98, 130], [2.03, 92], [2.1, 80]]);
+  const pitch6 = glide([[1.45, -1.5], [1.6, -5], [1.72, -10], [1.8, -3], [2.1, 1]]);
+  const curve = (pts, u) => {
+    const n = pts.length - 1, f = Math.min(n - 1e-6, u * n), i = Math.floor(f), t = f - i;
+    const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(n, i + 2)];
+    const c = (k) => 0.5 * (2 * p1[k] + (-p0[k] + p2[k]) * t + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * t * t + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * t * t * t);
+    return [c(0), c(1)];
+  };
+
   function at(sIn) {
     const s = Math.min(LENGTH, Math.max(0, sIn * LENGTH));
-    const o = { s, cut: cut(s), dining: 0 };
-    if (s > STOPS.foyer) {
+    const o = { s, cut: cut(s), dining: 0, pool: 0, gallery: 0 };
+    if (s > STOPS.dining) {
+      const [x, n] = curve(Q, along6(s));
+      Object.assign(o, { fov: fovWalk, x, y: EYE, z: -n, yaw: yaw6(s) * deg, pitch: pitch6(s) * deg, dist: 9, door: 1, entry: 1, foyer: 1, floor: 0, dining: 1 });
+      o.pool = clamp01((s - 1.55) / 0.17);
+      o.gallery = clamp01((s - 1.93) / 0.13);
+    } else if (s > STOPS.foyer) {
       const [x, n] = spline(along(s));
       o.fov = fovWalk;
       o.x = x;

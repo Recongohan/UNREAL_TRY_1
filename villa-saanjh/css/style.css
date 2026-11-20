@@ -10,7 +10,7 @@ html, body { background: var(--paper); color: var(--ink); }
 body { font-family: var(--mono); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
 
 #gl { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
-#track { height: 1100vh; }
+#track { height: 1600vh; }
 
 /* paper grain over the drawing; it fades as rooms turn real */
 #grain {

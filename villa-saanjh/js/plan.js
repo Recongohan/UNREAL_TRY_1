@@ -46,7 +46,10 @@ export const ROOMS = [
 // The first box that holds a point wins, so the dining room comes before the
 // foyer (whose box also covers the stair hall next to it).
 export const ZONES = [
-  { key: 'dining', x0: 12.55, x1: 17.95, n0: 7.98, n1: 14.75, y0: -0.2, y1: 3.75, dir: [0, 1], from: 7.98, len: 6.8 },
+  { key: 'dining', x0: 12.55, x1: 17.95, n0: 7.98, n1: 14.9, y0: -0.2, y1: 3.75, dir: [0, 1], from: 7.98, len: 7.0 },
+  { key: 'gallery', x0: 7.95, x1: 16.05, n0: 4.95, n1: 7.98, y0: -0.2, y1: 3.75, dir: [-1, 0], from: 16.05, len: 8.1 },
+  // the terrace and pool, and the north face of the house seen from them
+  { key: 'pool', x0: -1.5, x1: 17.6, n0: 14.95, n1: 26.0, y0: -2.0, y1: 8.4, dir: [0, 1], from: 14.95, len: 11 },
   { key: 'entry', x0: 23.95, x1: 38, n0: -1, n1: 12, y0: -1, y1: 4.6, dir: [-1, 0], from: 36.5, len: 13 },
   { key: 'foyer', x0: 16.0, x1: 23.95, n0: 0.25, n1: 14.75, y0: -0.2, y1: 7.6, dir: [-1, 0], from: 23.95, len: 8.2 },
 ];
@@ -54,7 +57,7 @@ export const ZONES = [
 // Doors drawn on the plan: hinge (x, n), leaf width, and the two angles of the
 // swing in degrees from east (the leaf is drawn open at `open`).
 export const DOORS = [
-  { x: 8.0, n: 5.8, w: 1.1, open: 90, closed: 0, sweep: [0, 90] }, // bedroom 2
+  { x: 8.0, n: 5.8, w: 1.1, open: 180, closed: 90, sweep: [90, 180] }, // bedroom 2
   { x: 8.5, n: 8.0, w: 1.1, open: 90, closed: 0, sweep: [0, 90] }, // master
   { x: 9.0, n: 5.0, w: 1.0, open: -90, closed: 0, sweep: [-90, 0] }, // wardrobe
   { x: 12.5, n: 5.0, w: 1.0, open: -90, closed: 0, sweep: [-90, 0] }, // bath 2
@@ -64,6 +67,9 @@ export const DOORS = [
 
 // The front door: a 1.9 m oak pivot door in the east wall.
 export const FRONT_DOOR = { x: 23.85, n0: 4.3, n1: 6.2, h: 3.5, pivotN: 4.75, t: 0.08 };
+
+// The pool basin, in plan.
+export const POOL = { x0: 2.5, x1: 13.5, n0: 16.5, n1: 21.5, water: -0.18, floor: -1.5 };
 
 // Trees: crowns sit above the cut, so the plan draws them dashed.
 export const TREES = [
@@ -75,5 +81,5 @@ export const TREES = [
   { x: 3.0, n: -2.6, r: 1.7, h: 5.0 },
 ];
 
-// Late afternoon: the sun is low in the south-west, heading north-east.
-export const SUN = { elevation: 24, azimuth: 218 }; // degrees; azimuth from north, clockwise
+// Late afternoon: the sun is low in the west-south-west, so it reaches the pool past the house.
+export const SUN = { elevation: 21, azimuth: 250 }; // degrees; azimuth from north, clockwise

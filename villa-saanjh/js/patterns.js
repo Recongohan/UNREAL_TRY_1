@@ -171,3 +171,98 @@ export function jali() {
   const t = tex(c, { srgb: false });
   return t;
 }
+
+// Glass pool mosaic, 2 cm tesserae in mixed blues, 0.5 m square.
+export function mosaic(anisotropy) {
+  const S = 1024, N = 25;
+  const [c, g] = canvas(S);
+  g.fillStyle = '#d9e4e6';
+  g.fillRect(0, 0, S, S);
+  const rnd = seeded(23);
+  const blues = ['#1f6f9a', '#2a86b0', '#3a9cc2', '#1a5c86', '#4fb0cf', '#2d7ea6', '#6cc0d6'];
+  const cell = S / N, gap = cell * 0.09;
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) {
+    g.fillStyle = blues[Math.floor(rnd() * blues.length)];
+    g.fillRect(i * cell + gap / 2, j * cell + gap / 2, cell - gap, cell - gap);
+    g.globalAlpha = 0.15;
+    g.fillStyle = '#ffffff';
+    g.fillRect(i * cell + gap / 2, j * cell + gap / 2, (cell - gap) * 0.5, (cell - gap) * 0.35);
+    g.globalAlpha = 1;
+  }
+  return tex(c, { anisotropy });
+}
+
+// Small ripples on the water, as a normal map (tiles every metre).
+export function ripples() {
+  const S = 256;
+  const [c, g] = canvas(S);
+  const img = g.createImageData(S, S);
+  const h = (x, y) => {
+    let v = 0;
+    for (const [fx, fy, a, p] of [[3, 2, 1, 0.3], [-2, 5, 0.6, 1.1], [7, -4, 0.35, 2.0], [-6, -7, 0.25, 0.7]]) v += a * Math.sin(((fx * x + fy * y) / S) * Math.PI * 2 + p);
+    return v;
+  };
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const dx = h(x + 1, y) - h(x - 1, y), dy = h(x, y + 1) - h(x, y - 1);
+    const k = 6;
+    let nx = -dx * k, ny = -dy * k, nz = 1;
+    const l = Math.hypot(nx, ny, nz);
+    const i = (y * S + x) * 4;
+    img.data[i] = ((nx / l) * 0.5 + 0.5) * 255;
+    img.data[i + 1] = ((ny / l) * 0.5 + 0.5) * 255;
+    img.data[i + 2] = ((nz / l) * 0.5 + 0.5) * 255;
+    img.data[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  return tex(c, { srgb: false });
+}
+
+// The gallery painting: the Konkan shore at dusk, in broad strokes.
+export function painting() {
+  const W = 960, H = 600;
+  const [c, g] = canvas(W, H);
+  const sky = g.createLinearGradient(0, 0, 0, H * 0.62);
+  sky.addColorStop(0, '#2b3f63');
+  sky.addColorStop(0.55, '#c9785a');
+  sky.addColorStop(1, '#e9b77f');
+  g.fillStyle = sky;
+  g.fillRect(0, 0, W, H * 0.62);
+  const sea = g.createLinearGradient(0, H * 0.62, 0, H);
+  sea.addColorStop(0, '#b77a62');
+  sea.addColorStop(1, '#1f344d');
+  g.fillStyle = sea;
+  g.fillRect(0, H * 0.62, W, H);
+  g.fillStyle = '#f3d29a';
+  g.beginPath();
+  g.arc(W * 0.66, H * 0.56, 46, 0, Math.PI * 2);
+  g.fill();
+  const rnd = seeded(13);
+  for (let i = 0; i < 900; i++) {
+    const y = rnd() * H;
+    g.globalAlpha = 0.06;
+    g.fillStyle = y < H * 0.62 ? (rnd() > 0.5 ? '#f0c08a' : '#3a4a70') : rnd() > 0.5 ? '#e7b07a' : '#13263a';
+    g.fillRect(rnd() * W, y, 40 + rnd() * 160, 2 + rnd() * 6);
+  }
+  // a line of palms against the sky
+  g.globalAlpha = 0.9;
+  g.strokeStyle = g.fillStyle = '#1b1c22';
+  for (const [x, h] of [[90, 260], [170, 300], [760, 280], [860, 240]]) {
+    g.lineWidth = 6;
+    g.beginPath();
+    g.moveTo(x, H * 0.66);
+    g.quadraticCurveTo(x + 18, H * 0.66 - h * 0.5, x + 8, H * 0.66 - h);
+    g.stroke();
+    for (let k = 0; k < 9; k++) {
+      const a = (k / 9) * Math.PI * 2;
+      g.lineWidth = 4;
+      g.beginPath();
+      g.moveTo(x + 8, H * 0.66 - h);
+      g.quadraticCurveTo(x + 8 + Math.cos(a) * 40, H * 0.66 - h - 20, x + 8 + Math.cos(a) * 75, H * 0.66 - h + Math.abs(Math.sin(a)) * 40 + 20);
+      g.stroke();
+    }
+  }
+  g.globalAlpha = 1;
+  const t = tex(c, {});
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+  return t;
+}

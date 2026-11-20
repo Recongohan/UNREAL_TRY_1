@@ -74,8 +74,8 @@ if (mode === 'export') {
   const N = Math.round(seconds * fps);
   // scroll speed through the page: linger on the sheet, then a steady walk
   const ease = (u) => {
-    // (share of the video, scroll progress): hold the sheet, rise, land, pause at the door, foyer, dining
-    const keys = [[0, 0], [0.06, 0], [0.16, 0.04], [0.36, 0.26], [0.45, 0.385], [0.51, 0.43], [0.69, 0.69], [0.74, 0.705], [0.97, 1], [1, 1]];
+    // (share of the video, scroll progress): hold the sheet, rise, land, pause at the door, foyer, dining, pool, gallery
+    const keys = [[0, 0], [0.05, 0], [0.13, 0.03], [0.28, 0.18], [0.35, 0.267], [0.39, 0.295], [0.52, 0.476], [0.66, 0.69], [0.74, 0.79], [0.8, 0.838], [0.97, 1], [1, 1]];
     for (let i = 1; i < keys.length; i++) if (u <= keys[i][0]) {
       const t = (u - keys[i - 1][0]) / (keys[i][0] - keys[i - 1][0]);
       const e = t * t * (3 - 2 * t);

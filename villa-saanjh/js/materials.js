@@ -214,6 +214,13 @@ export function makeMaterials(T, P) {
     // soft things and objects
     velvet: inkify(new THREE.MeshPhysicalMaterial({ color: '#1c2b55', roughness: 0.75, sheen: 1, sheenColor: new THREE.Color('#6d86c9'), sheenRoughness: 0.5 })),
     drape: inkify(new THREE.MeshPhysicalMaterial({ color: '#1a2850', roughness: 0.8, sheen: 1, sheenColor: new THREE.Color('#5d76b8'), sheenRoughness: 0.45 }), { thin: true }),
+    mosaic: std({ map: sized(P.mosaic, 0.5), roughness: 0.12, envMapIntensity: 1.2 }),
+    // in ink the water is paper; in colour you see through it to the mosaic
+    water: inkify(new THREE.MeshStandardMaterial({ color: '#5cc0d4', emissive: new THREE.Color('#1c8aa3'), emissiveIntensity: 0.55, roughness: 0.04, metalness: 0.1, transparent: true, opacity: 0.62, depthWrite: false, normalMap: sized(P.ripples, 1.2), normalScale: new THREE.Vector2(0.35, 0.35), envMapIntensity: 1.6 }), { glassInk: 1, thin: true }),
+    cascade: inkify(new THREE.MeshStandardMaterial({ color: '#e8f5f8', roughness: 0.1, transparent: true, opacity: 0.6, depthWrite: false, emissive: new THREE.Color('#9fc6d0'), emissiveIntensity: 0.25 }), { glassInk: 0, thin: true }),
+    art: thinStd({ map: P.painting, roughness: 0.85 }),
+    linen: std({ color: '#ecebe6', roughness: 0.95 }),
+    umbrella: inkify(new THREE.MeshStandardMaterial({ color: '#1d2f52', roughness: 0.9 }), { thin: true }),
     porcelain: std({ color: '#f1efe9', roughness: 0.2, envMapIntensity: 1.2 }),
     clay: std({ color: '#a8673f', roughness: 0.85 }),
     ceramic: std({ color: '#244a6b', roughness: 0.25 }),

@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import { BoxSolid, Part, boxEdges } from './solid.js';
-import { ROOMS, ZONES, DOORS, FRONT_DOOR, TREES, GROUND_Y } from './plan.js';
+import { ROOMS, ZONES, DOORS, FRONT_DOOR, TREES, GROUND_Y, POOL } from './plan.js';
 
 export function zoneOf(x, y, n) {
   for (const z of ZONES) if (x > z.x0 && x < z.x1 && n > z.n0 && n < z.n1 && y > z.y0 && y < z.y1) return z.key;
@@ -279,7 +279,8 @@ export function buildHouse() {
   A(0, 0, 24, 15, 4.0, 7.9); // first floor and roof
   A(-0.2, -0.2, 24.2, 15.2, 7.9, 8.3); // roof cornice
   A(0, 15, 16, 23.5, -1.9, 0); // pool terrace
-  C(2.5, 16.5, 13.5, 21.5, -1.5, 0); // the pool (6 m deep plan in a 11 x 5 m basin)
+  C(POOL.x0, POOL.n0, POOL.x1, POOL.n1, POOL.floor, 0); // the pool: 11 x 5 m, 1.3 m of water
+  A(2.2, 21.7, 13.8, 22.15, 0, 2.4); // a mosaic wall at the far end, with three spouts
   A(17.0, 15.6, 26.2, 25.0, BASE, -0.33); // parking court
 
   // boundary wall around the site, with a gate for the path and one for the cars
@@ -315,6 +316,7 @@ export function buildHouse() {
   // round-headed openings: cut the full rectangle, then fill the shoulders
   const arches = [];
   const arch = (along, t0, t1, a0, a1, spring, y0 = 0, glass = false, mat = 'plaster') => {
+    if (glass === 'open') glass = false; // a door standing open: no glass in it
     const r = (a1 - a0) / 2;
     if (along === 'n') C(t0, a0, t1, a1, y0, spring + r);
     else C(a0, t0, a1, t1, y0, spring + r);
@@ -328,7 +330,8 @@ export function buildHouse() {
   // clerestory over the lift and powder room: the late sun comes in here
   for (const [a0, a1] of [[16.9, 18.3], [19.2, 20.6], [21.5, 22.9]]) arch('x', 0, 0.3, a0, a1, 6.1, 4.7, true, 'render');
   arch('x', 14.7, 15.0, 20.3, 23.2, 5.2, 2.5, true, 'render'); // stair hall, over the pool
-  for (const [a0, a1] of [[13.35, 15.15], [15.35, 17.15]]) arch('x', 14.7, 15.0, a0, a1, 2.45, 0, true, 'render'); // dining: French doors to the terrace
+  arch('x', 14.7, 15.0, 13.35, 15.15, 2.45, 0, 'open', 'render'); // dining: French doors to the terrace, one standing open
+  arch('x', 14.7, 15.0, 15.35, 17.15, 2.45, 0, true, 'render');
   for (const [a0, a1] of [[1.2, 3.8], [5.0, 7.6]]) arch('x', 14.7, 15.0, a0, a1, 2.2, 0, true, 'render'); // master
   arch('n', 0, 0.3, 2.0, 5.8, 1.9, 0.6, true, 'render'); // bedroom 2, west
   arch('n', 0, 0.3, 9.4, 13.4, 1.9, 0.6, true, 'render'); // master, west
@@ -357,6 +360,11 @@ export function buildHouse() {
   const faceMat = ([cx, cy, cz], [nx, ny, nz]) => {
     const x = cx, y = cy, n = -cz;
     const ax = x + nx * 0.05, ay = y + ny * 0.05, an = n - nz * 0.05; // a point in the air
+    const basin = x > POOL.x0 - 0.01 && x < POOL.x1 + 0.01 && n > POOL.n0 - 0.01 && n < POOL.n1 + 0.01 && y < 0.001;
+    const poolWall = x > 2.19 && x < 13.81 && n > 21.69 && n < 22.16 && y > -0.01 && y < 2.41;
+    if (basin) return 'mosaic';
+    if (poolWall && ny > 0) return 'paving';
+    if (poolWall && nz > 0) return 'mosaic';
     if (ny > 0) {
       if (y > 7.8) return 'roof';
       if (Math.abs(y) < 0.01 && HOUSE(x, n)) {
@@ -626,20 +634,20 @@ export function buildHouse() {
     band(x0 + 0.4, n0 + 0.4, x1 - 0.4, n1 - 0.4, 0.12, 'navy', 0.005);
   }
   // panelled walls: gilt mouldings in rectangles, a dado rail and a cornice
-  const frameOn = (axis, at0, u0, u1, y0, y1, out) => {
+  const frameOn = (axis, at0, u0, u1, y0, y1, out, Zf = D) => {
     const t = 0.03, d = 0.025;
-    const B = (a0, b0, a1, b1, ya, yb) => kit.box('gold', a0, b0, a1, b1, ya, yb, { zone: D, edges: false });
+    const B = (a0, b0, a1, b1, ya, yb) => kit.box('gold', a0, b0, a1, b1, ya, yb, { zone: Zf, edges: false });
     if (axis === 'x') { // wall facing along n, at n = at0, room side `out`
       const n0 = out > 0 ? at0 : at0 - d, n1 = out > 0 ? at0 + d : at0;
       B(u0, n0, u1, n1, y0, y0 + t); B(u0, n0, u1, n1, y1 - t, y1);
       B(u0, n0, u0 + t, n1, y0, y1); B(u1 - t, n0, u1, n1, y0, y1);
-      kit.line(D, [[u0, y0, -n1], [u1, y0, -n1], [u1, y1, -n1], [u0, y1, -n1], [u0, y0, -n1]].map((p) => (out > 0 ? p : [p[0], p[1], -n0])));
+      kit.line(Zf, [[u0, y0, -n1], [u1, y0, -n1], [u1, y1, -n1], [u0, y1, -n1], [u0, y0, -n1]].map((p) => (out > 0 ? p : [p[0], p[1], -n0])));
     } else { // wall facing along x, at x = at0
       const x0 = out > 0 ? at0 : at0 - d, x1 = out > 0 ? at0 + d : at0;
       B(x0, u0, x1, u1, y0, y0 + t); B(x0, u0, x1, u1, y1 - t, y1);
       B(x0, u0, x1, u0 + t, y0, y1); B(x0, u1 - t, x1, u1, y0, y1);
       const xf = out > 0 ? x1 : x0;
-      kit.line(D, [[xf, y0, -u0], [xf, y0, -u1], [xf, y1, -u1], [xf, y1, -u0], [xf, y0, -u0]]);
+      kit.line(Zf, [[xf, y0, -u0], [xf, y0, -u1], [xf, y1, -u1], [xf, y1, -u0], [xf, y0, -u0]]);
     }
   };
   // west wall (x = 12.6, facing east): three tall panels behind the sideboard
@@ -718,12 +726,103 @@ export function buildHouse() {
 
   // curtains: navy velvet, gathered either side of each French door
   for (const [c0, c1] of [[13.35, 15.15], [15.35, 17.15]]) {
-    for (const [u, dir] of [[c0 - 0.05, -1], [c1 + 0.05, 1]]) curtain(kit, D, u, 14.62, dir, 0.45, 3.35);
+    // curtains on the outer sides only, so nothing hangs across a door
+    for (const [u, dir] of c0 < 14 ? [[c0 - 0.05, -1]] : [[c1 + 0.05, 1]]) curtain(kit, D, u, 14.62, dir, 0.45, 3.35);
     kit.geo('gold', at(new THREE.CylinderGeometry(0.018, 0.018, c1 - c0 + 1.1, 8).rotateZ(Math.PI / 2), (c0 + c1) / 2, 3.38, 14.6), { zone: D, edges: false });
   }
+  for (const [hx, dir] of [[13.35, 1], [15.15, -1]]) kit.box('teak', hx - (dir > 0 ? 0 : 0.05), 14.75, hx + (dir > 0 ? 0.05 : 0), 15.6, 0, 2.4, { zone: D });
   // two palms in the corners, by the doors
-  pottedPalm(kit, 13.1, 14.1, { zone: D, seed: 21, h: 2.0 });
-  pottedPalm(kit, 17.4, 14.1, { zone: D, seed: 22, h: 2.0 });
+  pottedPalm(kit, 12.95, 13.2, { zone: D, seed: 21, h: 2.0 });
+  pottedPalm(kit, 17.5, 13.3, { zone: D, seed: 22, h: 2.0 });
+
+  // ---- the gallery -----------------------------------------------------------------------
+  const Gz = 'gallery';
+  // a cement-tile runner with a navy edge down the middle of the white marble
+  kit.box('cement', 8.7, 5.85, 15.9, 7.15, 0, 0.004, { zone: Gz, edges: false });
+  for (const [a0, b0, a1, b1] of [[8.6, 5.75, 16.0, 5.85], [8.6, 7.15, 16.0, 7.25], [8.6, 5.85, 8.7, 7.15]]) kit.box('navy', a0, b0, a1, b1, 0, 0.005, { zone: Gz, edges: false });
+  kit.line(Gz, [[16.0, 0.005, -5.75], [8.6, 0.005, -5.75], [8.6, 0.005, -7.25], [16.0, 0.005, -7.25]]);
+  // north wall: a large painting in a gilt frame between two lanterns
+  {
+    const g = new THREE.PlaneGeometry(2.4, 1.5);
+    kit.geo('art', at(g, 11.5, 1.85, 7.86), { zone: Gz, edges: false });
+    for (const [a0, a1, ya, yb] of [[10.22, 12.78, 1.03, 1.1], [10.22, 12.78, 2.6, 2.67], [10.22, 10.3, 1.03, 2.67], [12.7, 12.78, 1.03, 2.67]]) kit.box('gold', a0, 7.83, a1, 7.9, ya, yb, { zone: Gz });
+    for (const lx of [9.95, 13.05]) {
+      lantern(kit, lx, 2.1, 7.72, { zone: Gz, scale: 0.8 });
+      kit.box('gold', lx - 0.02, 7.72, lx + 0.02, 7.9, 1.98, 2.02, { zone: Gz, edges: false });
+    }
+  }
+  // south wall: a brass jali niche over black marble, and a console under an arched mirror
+  kit.box('blackMarble', 13.85, 5.1, 15.75, 5.13, 0.12, 2.95, { zone: Gz });
+  kit.geo('jali', archPane(13.95, 15.65, 0.2, 2.0, 'x', 5.16), { zone: Gz, edges: false });
+  kit.geo('gold', archFill(13.85, 15.75, 2.0, 2.95, 'x', 5.1, 5.17), { zone: Gz, edges: false });
+  kit.line(Gz, [[13.95, 0.2, -5.16], [13.95, 2.0, -5.16]]);
+  kit.line(Gz, [[15.65, 0.2, -5.16], [15.65, 2.0, -5.16]]);
+  kit.geo('mirror', archPane(10.6, 12.0, 1.25, 2.35, 'x', 5.13), { zone: Gz });
+  kit.geo('gold', archFill(10.5, 12.1, 2.35, 3.16, 'x', 5.1, 5.15), { zone: Gz, edges: false });
+  kit.box('gold', 10.5, 5.1, 10.6, 5.15, 1.2, 2.35, { zone: Gz, edges: false });
+  kit.box('gold', 12.0, 5.1, 12.1, 5.15, 1.2, 2.35, { zone: Gz, edges: false });
+  kit.box('marbleWhite', 10.45, 5.1, 12.15, 5.52, 0.86, 0.9, { zone: Gz });
+  for (const lx of [10.6, 12.0]) kit.geo('gold', at(new THREE.LatheGeometry([[0, 0], [0.04, 0], [0.025, 0.25], [0.04, 0.5], [0.02, 0.86], [0, 0.86]].map(([r, y]) => new THREE.Vector2(r, y)), 10), lx, 0, 5.4), { zone: Gz, angle: 50 });
+  kit.geo('porcelain', at(new THREE.LatheGeometry([[0, 0], [0.08, 0], [0.13, 0.12], [0.12, 0.3], [0.05, 0.4], [0.07, 0.44], [0, 0.44]].map(([r, y]) => new THREE.Vector2(r, y)), 24), 11.3, 0.9, 5.32), { zone: Gz, angle: 40 });
+  // three lanterns hung from the ceiling, and a palm in the far corner
+  for (const lx of [10.2, 12.45, 14.7]) lantern(kit, lx, 2.55, 6.5, { zone: Gz, scale: 1.0, hanging: 0.63 });
+  pottedPalm(kit, 8.6, 5.5, { zone: Gz, seed: 31, h: 2.1 });
+
+  // ---- the terrace and the pool --------------------------------------------------------
+  const PZ = 'pool';
+  {
+    // the water: a surface you can see through to the mosaic
+    const w = new THREE.PlaneGeometry(POOL.x1 - POOL.x0, POOL.n1 - POOL.n0);
+    const uv = w.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * (POOL.x1 - POOL.x0), uv.getY(i) * (POOL.n1 - POOL.n0));
+    w.rotateX(-Math.PI / 2);
+    kit.geo('water', at(w, (POOL.x0 + POOL.x1) / 2, POOL.water, (POOL.n0 + POOL.n1) / 2), { zone: PZ, edges: false });
+    // three bronze spouts in the far wall, each pouring a curved sheet of water
+    for (const sx of [4.7, 8.0, 11.3]) {
+      kit.box('gold', sx - 0.13, 21.3, sx + 0.13, 21.7, 1.48, 1.56, { zone: PZ });
+      kit.box('gold', sx - 0.16, 21.62, sx + 0.16, 21.7, 1.42, 1.62, { zone: PZ, edges: false });
+      const rows = 16, pos = [], idx = [], uvs = [];
+      for (let j = 0; j <= rows; j++) {
+        const t = j / rows;
+        const n = 21.32 - 0.95 * t, y = 1.52 - (1.52 - POOL.water) * t * t, half = 0.11 + 0.07 * t;
+        pos.push(sx - half, y, -n, sx + half, y, -n);
+        uvs.push(0, t, 1, t);
+      }
+      for (let j = 0; j < rows; j++) idx.push(2 * j, 2 * j + 1, 2 * j + 3, 2 * j, 2 * j + 3, 2 * j + 2);
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      g.setIndex(idx);
+      g.computeVertexNormals();
+      kit.geo('cascade', g, { zone: PZ, edges: false });
+      kit.line(PZ, Array.from({ length: rows + 1 }, (_, j) => { const t = j / rows; return [sx, 1.52 - (1.52 - POOL.water) * t * t, -(21.32 - 0.95 * t)]; }));
+      // where it lands: a ring of foam
+      kit.geo('cascade', at(new THREE.RingGeometry(0.08, 0.3, 24).rotateX(-Math.PI / 2), sx, POOL.water + 0.01, 20.37), { zone: PZ, edges: false });
+    }
+  }
+  // two teak loungers and a navy umbrella on the east deck
+  for (const lx of [14.35, 15.25]) {
+    kit.box('teak', lx, 17.0, lx + 0.66, 18.7, 0.22, 0.3, { zone: PZ });
+    for (const [a, b] of [[lx + 0.03, 17.05], [lx + 0.57, 17.05], [lx + 0.03, 18.6], [lx + 0.57, 18.6]]) kit.box('teak', a, b, a + 0.06, b + 0.06, 0, 0.22, { zone: PZ, edges: false });
+    kit.box('linen', lx + 0.04, 17.04, lx + 0.62, 18.6, 0.3, 0.38, { zone: PZ });
+    const back = new THREE.BoxGeometry(0.58, 0.07, 0.75);
+    back.translate(0, 0, -0.375);
+    back.rotateX(0.75);
+    kit.geo('linen', at(back, lx + 0.33, 0.36, 18.62), { zone: PZ });
+  }
+  kit.geo('teak', at(new THREE.CylinderGeometry(0.03, 0.03, 2.5, 8), 15.15, 1.25, 19.6), { zone: PZ, edges: false });
+  {
+    const c = new THREE.ConeGeometry(1.5, 0.45, 8, 1, true);
+    kit.geo('umbrella', at(c, 15.15, 2.4, 19.6), { zone: PZ, angle: 20 });
+  }
+  // planting on the terrace, and lanterns on the house wall
+  palm(kit, 0.9, 22.7, 0, 6.2, { zone: PZ, seed: 41, len: 2.8 });
+  palm(kit, 15.0, 22.6, 0, 6.8, { zone: PZ, seed: 43, len: 3.0 });
+  for (const [px, pn, sd] of [[1.0, 15.7, 45], [11.2, 15.7, 46], [2.4, 22.9, 47], [13.6, 22.9, 48]]) pottedPalm(kit, px, pn, { zone: PZ, seed: sd, h: 1.8, pot: 'clay' });
+  for (const lx of [13.25, 15.25, 17.25]) {
+    lantern(kit, lx, 2.35, 15.22, { zone: PZ, scale: 0.85 });
+    kit.box('gold', lx - 0.02, 15.0, lx + 0.02, 15.22, 2.2, 2.24, { zone: PZ, edges: false });
+  }
 
   // ---- outside: the portico and the approach --------------------------------------------
   const E = 'entry';
@@ -778,8 +877,8 @@ export function buildHouse() {
   for (const [px, pn, sd] of [[29.6, 2.2, 11], [29.8, 8.4, 12], [26.0, 1.4, 13], [26.2, 9.1, 14]]) pottedPalm(kit, px, pn, { zone: E, seed: sd, h: 1.7, pot: 'clay' });
 
   // ---- the rest: drawn, not walked yet ---------------------------------------------------------
-  for (const t of TREES) palm(kit, t.x, t.n, GROUND_Y, t.h, { zone: 'rest', seed: Math.round(t.x * 7 + t.n), len: t.r * 1.3 });
-  kit.box('water', 2.5, 16.5, 13.5, 21.5, -1.5, -0.18, { zone: 'rest', edges: false });
+  for (const t of TREES) palm(kit, t.x, t.n, GROUND_Y, t.h, { seed: Math.round(t.x * 7 + t.n), len: t.r * 1.3 });
+
   // inner doors, standing open
   for (const d of DOORS) {
     if (d.n === 2.5) continue;

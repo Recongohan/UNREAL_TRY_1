@@ -54,9 +54,11 @@ MATS = {
     "night": dict(c="#1e2430", r=0.6), "glass": dict(c="#ffffff", r=0.0, glass=True), "velvet": dict(c="#1c2b55", r=0.75, sheen=1),
     "drape": dict(c="#1a2850", r=0.8, sheen=1), "porcelain": dict(c="#f1efe9", r=0.2), "clay": dict(c="#a8673f", r=0.85),
     "ceramic": dict(c="#244a6b", r=0.25), "flowerWhite": dict(c="#f3ede6", r=0.7), "flowerPink": dict(c="#d98aa4", r=0.7),
-    "flowerPlum": dict(c="#7d3f6e", r=0.7), "leaf": dict(c="#3f5a2c", r=0.7), "trunk": dict(c="#6b5a48", r=1), "water": dict(c="#2f7f99", r=0.08),
+    "flowerPlum": dict(c="#7d3f6e", r=0.7), "leaf": dict(c="#3f5a2c", r=0.7), "trunk": dict(c="#6b5a48", r=1),
+    "water": dict(c="#ffffff", r=0.0, glass=True), "cascade": dict(c="#ffffff", r=0.0, glass=True), "mosaic": dict(c="#2f86ad", r=0.12),
+    "art": dict(c="#9c6e5a", r=0.85), "linen": dict(c="#ecebe6", r=0.95), "umbrella": dict(c="#1d2f52", r=0.9),
 }
-NO_BAKE = {"gold", "mirror", "jali", "iron", "crystal", "lampGlass", "glass", "night", "flowerWhite", "flowerPink", "flowerPlum", "leaf"}
+NO_BAKE = {"gold", "mirror", "jali", "iron", "crystal", "lampGlass", "glass", "night", "flowerWhite", "flowerPink", "flowerPlum", "leaf", "water", "cascade"}
 
 def jali_image():
     """The same pattern as js/patterns.js: rings on a 1/4 grid, used as an alpha mask."""
@@ -322,7 +324,8 @@ for zone, objs in atlases.items():
     print(f"BAKED {zone}: scale {scale:.3f}, median {flat[zone]:.3f}", flush=True)
 
 # ---- 360 captures for reflections -----------------------------------------------------------
-PROBES = {"entry": (26.2, 1.6, 5.25), "foyer": (20.6, 1.7, 5.0), "dining": (15.25, 1.6, 9.6)}  # (x, y, n)
+PROBES = {"entry": (26.2, 1.6, 5.25), "foyer": (20.6, 1.7, 5.0), "dining": (15.25, 1.6, 9.6),
+          "pool": (12.0, 1.4, 17.5), "gallery": (12.5, 1.6, 6.5)}  # (x, y, n)
 envs = {}
 cd = bpy.data.cameras.new("probe")
 cd.type = "PANO"

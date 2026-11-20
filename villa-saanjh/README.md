@@ -4,7 +4,7 @@ A scroll-driven landing page. It opens on a printed ground-floor plan. On scroll
 
 The plan is not a picture: it is the 3D model, cut at 1.2 m and seen from straight above through a 1.6° lens.
 
-**Status: checkpoint 2.** The sheet, the walls rising, the entry, the double-height foyer and the dining room, lit by light baked in Blender Cycles. The pool beyond the French doors is still ink.
+**Status: checkpoint 3.** The sheet, the walls rising, the entry, the double-height foyer, the dining room, the pool terrace and the gallery, lit by light baked in Blender Cycles. The bedrooms are still ink.
 
 ## Run it
 

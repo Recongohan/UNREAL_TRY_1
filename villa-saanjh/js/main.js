@@ -6,11 +6,11 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
-import { PAPER, INK, GROUND_Y, SUN } from './plan.js';
+import { PAPER, INK, GROUND_Y, SUN, POOL } from './plan.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { CUT, ZONE_PLANES, setZoneReveal, loadTextures, makeMaterials, withLightmap } from './materials.js';
-import { cementTile, wallTile, blackMarble, jali } from './patterns.js';
+import { cementTile, wallTile, blackMarble, jali, mosaic, ripples, painting } from './patterns.js';
 import { buildHouse } from './house.js';
 import { buildSheet } from './sheet.js';
 import { makeRig, STOPS, LENGTH } from './rig.js';
@@ -46,7 +46,10 @@ const camera = new THREE.PerspectiveCamera(2, 1, 1, 5000);
 camera.rotation.order = 'YXZ';
 
 // the sheet of paper everything stands on
-const paper = new THREE.Mesh(new THREE.PlaneGeometry(6000, 6000), new THREE.MeshBasicMaterial({ color: PAPER, toneMapped: false }));
+// (with a hole over the pool, so you can look down into the water)
+const sheetShape = new THREE.Shape([new THREE.Vector2(-3000, -3000), new THREE.Vector2(3000, -3000), new THREE.Vector2(3000, 3000), new THREE.Vector2(-3000, 3000)]);
+sheetShape.holes.push(new THREE.Path([new THREE.Vector2(POOL.x0, POOL.n0), new THREE.Vector2(POOL.x0, POOL.n1), new THREE.Vector2(POOL.x1, POOL.n1), new THREE.Vector2(POOL.x1, POOL.n0)]));
+const paper = new THREE.Mesh(new THREE.ShapeGeometry(sheetShape), new THREE.MeshBasicMaterial({ color: PAPER, toneMapped: false, side: THREE.DoubleSide }));
 paper.rotation.x = -Math.PI / 2;
 paper.position.y = GROUND_Y;
 scene.add(paper);
@@ -246,6 +249,9 @@ lamp(16.6, 1.4, 3.3, 1.2, 4, 0xffc78a, 8, 0.05);
 lamp(15.25, 2.75, 11.45, 14, 0, 0xffd6a8, 200, 0.28); // dining chandelier
 lamp(12.95, 1.3, 10.7, 0.8, 3, 0xffc78a, 6, 0.04);
 lamp(12.95, 1.3, 12.1, 0.8, 3, 0xffc78a, 6, 0.04);
+for (const lx of [10.2, 12.45, 14.7]) lamp(lx, 2.6, 6.5, 3, 6, 0xffc78a, 35, 0.12); // gallery lanterns
+for (const lx of [9.95, 13.05]) lamp(lx, 2.1, 7.6, 1, 3, 0xffc78a, 10, 0.06);
+for (const lx of [13.25, 15.25, 17.25]) lamp(lx, 2.35, 15.4, 1.5, 5, 0xffc78a, 18, 0.07); // terrace lanterns
 
 // ---- sheet, rig, resize ------------------------------------------------------------------
 let rig, sheet, sheetGroup;
@@ -290,6 +296,9 @@ function draw(s) {
   setZoneReveal('entry', o.entry);
   setZoneReveal('foyer', o.foyer);
   setZoneReveal('dining', o.dining);
+  setZoneReveal('pool', o.pool);
+  setZoneReveal('gallery', o.gallery);
+  if (M.water.normalMap) M.water.normalMap.offset.set(o.s * 0.9, o.s * 0.35); // the water moves as you scroll
   const a = o.door * 1.62;
   if (a !== lastDoor) {
     for (const g of door) g.rotation.y = a * g.userData.sign;
@@ -308,7 +317,7 @@ function draw(s) {
   grain.style.opacity = (0.5 * (1 - Math.max(o.entry * 0.5, o.foyer))).toFixed(3);
   if (baked) {
     renderer.toneMappingExposure = baked.meta.exposure;
-    const z = o.dining > 0.25 ? 'dining' : o.foyer > 0.25 ? 'foyer' : 'entry';
+    const z = o.gallery > 0.25 ? 'gallery' : o.pool > 0.25 ? 'pool' : o.dining > 0.25 ? 'dining' : o.foyer > 0.25 ? 'foyer' : 'entry';
     if (baked.envs[z] && scene.environment !== baked.envs[z]) {
       scene.environment = baked.envs[z];
       scene.environmentIntensity = 1;
@@ -329,7 +338,9 @@ const T = (t) => t / LENGTH; // story time to scroll progress
 caption('#cap-lift', T(0.1), T(0.3));
 caption('#cap-entry', T(0.54), T(0.68));
 caption('#cap-foyer', T(0.92), T(1.08));
-caption('#cap-dining', T(1.4), null);
+caption('#cap-dining', T(1.4), T(1.52));
+caption('#cap-pool', T(1.64), T(1.78));
+caption('#cap-gallery', T(1.94), null);
 
 // with reduced motion the page moves in still frames, one per stop
 const STILLS = [0, STOPS.sheet + 0.1, STOPS.land, STOPS.foyer, LENGTH].map(T);
@@ -350,7 +361,7 @@ async function boot() {
     new Promise((r) => setTimeout(r, 3000)),
   ]);
   const TX = await loadTextures(ANISO);
-  M = makeMaterials(TX, { cement: cementTile(ANISO), wallTile: wallTile(ANISO), blackMarble: blackMarble(ANISO), jali: jali() });
+  M = makeMaterials(TX, { cement: cementTile(ANISO), wallTile: wallTile(ANISO), blackMarble: blackMarble(ANISO), jali: jali(), mosaic: mosaic(ANISO), ripples: ripples(), painting: painting() });
   assemble();
   if (!params.has('nobake')) baked = await loadBake();
   if (baked) {

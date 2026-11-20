@@ -74,8 +74,8 @@ export function buildSheet({ frame, portrait, labelScale = 1, anisotropy = 8, pl
     text(rows, { x, n, zone: zoneOf(x, 0.1, n) });
   }
   text([{ t: 'ENTRY', size: 0.27, weight: 500, track: 0.14 }, { t: 'PORTICO 3.60 × 4.90', size: 0.17, alpha: 0.7 }], { x: 25.8, n: 5.25, zone: 'entry' });
-  text([{ t: 'SWIMMING POOL', size: 0.3, weight: 500, track: 0.14 }, { t: '11.00 × 5.00', size: 0.22 }], { x: 8.0, n: 19.0, y: -0.17 });
-  text([{ t: 'POOL TERRACE', size: 0.22, weight: 500, track: 0.14 }], { x: 8.0, n: 22.6, y: FLOOR });
+  text([{ t: 'SWIMMING POOL', size: 0.3, weight: 500, track: 0.14 }, { t: '11.00 × 5.00', size: 0.22 }], { x: 8.0, n: 19.0, y: -0.17, zone: 'pool' });
+  text([{ t: 'POOL TERRACE', size: 0.22, weight: 500, track: 0.14 }], { x: 8.0, n: 23.0, y: FLOOR, zone: 'pool' });
   text([{ t: 'PARKING', size: 0.27, weight: 500, track: 0.14 }], { x: 21.6, n: 20.3, y: -0.33 + 0.006 });
   text([{ t: 'UP', size: 0.2, weight: 500 }], { x: 22.85, n: 9.45, zone: 'foyer' });
 
@@ -146,8 +146,8 @@ export function buildSheet({ frame, portrait, labelScale = 1, anisotropy = 8, pl
   // pool: a few ripple strokes
   for (let n = 17.0; n < 21.2; n += 0.45) {
     const k = Math.round((n - 17) / 0.45);
-    seg('hatch', 'rest', 3.2 + (k % 3) * 0.9, n, 4.4 + (k % 3) * 0.9, n, -0.17);
-    seg('hatch', 'rest', 9.0 - (k % 2) * 0.7, n + 0.2, 10.0 - (k % 2) * 0.7, n + 0.2, -0.17);
+    seg('hatch', 'pool', 3.2 + (k % 3) * 0.9, n, 4.4 + (k % 3) * 0.9, n, -0.17);
+    seg('hatch', 'pool', 9.0 - (k % 2) * 0.7, n + 0.2, 10.0 - (k % 2) * 0.7, n + 0.2, -0.17);
   }
   // parking: two cars, dashed (they are not part of the building)
   const car = (cx, cn) => {
