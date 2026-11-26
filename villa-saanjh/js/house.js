@@ -738,7 +738,7 @@ export function buildHouse() {
   }
   for (const [hx, dir] of [[13.35, 1], [15.15, -1]]) kit.box('teak', hx - (dir > 0 ? 0 : 0.05), 14.75, hx + (dir > 0 ? 0.05 : 0), 15.6, 0, 2.4, { zone: D });
   // two palms in the corners, by the doors
-  pottedPalm(kit, 12.95, 13.2, { zone: D, seed: 21, h: 1.45 }); // kept short: the walk back in from the terrace passes it
+  pottedPalm(kit, 12.95, 13.2, { zone: D, seed: 21, h: 1.3 }); // kept short: the walk back in from the terrace passes it
 
 
   // ---- the master bedroom -----------------------------------------------------------------
