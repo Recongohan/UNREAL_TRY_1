@@ -3,36 +3,36 @@
  "lightmaps": {
   "lm_pool": {
    "file": "lm_pool.webp",
-   "scale": 2.2216672897338867
+   "scale": 2.189790725708008
   },
   "lm_master": {
    "file": "lm_master.webp",
-   "scale": 3.0450587272644043
+   "scale": 2.851468324661255
   },
   "lm_dining": {
    "file": "lm_dining.webp",
-   "scale": 3.1518073081970215
+   "scale": 2.7713263034820557
   },
   "lm_foyer": {
    "file": "lm_foyer.webp",
-   "scale": 2.481031894683838
+   "scale": 1.9219985008239746
   },
   "lm_entry": {
    "file": "lm_entry.webp",
-   "scale": 2.6824090480804443
+   "scale": 2.5931944847106934
   },
   "lm_gallery": {
    "file": "lm_gallery.webp",
-   "scale": 1.6562906503677368
+   "scale": 1.4713884592056274
   }
  },
  "flat": {
-  "pool": 0.5558030009269714,
-  "master": 0.30729976296424866,
-  "dining": 0.3972611725330353,
-  "foyer": 0.32889121770858765,
-  "entry": 0.7382878661155701,
-  "gallery": 0.34818020462989807
+  "pool": 0.5384775400161743,
+  "master": 0.31517013907432556,
+  "dining": 0.4247673749923706,
+  "foyer": 0.34950557351112366,
+  "entry": 0.7391418218612671,
+  "gallery": 0.37614890933036804
  },
  "env": {
   "entry": "env_entry.hdr",

@@ -36,7 +36,7 @@ python3.13 -m venv .venv-bpy && .venv-bpy/bin/pip install bpy pillow numpy
 Q=nobake node tools/shoot.mjs export build/scene.json
 ```
 ```bash
-.venv-bpy/bin/python tools/bake.py build/scene.json build/final 128 2048 64 && rm -rf bake && cp -r build/final bake
+.venv-bpy/bin/python tools/bake.py build/scene.json build/final 112 2048 64 && rm -rf bake && cp -r build/final bake
 ```
 
 Then shrink it for the web (WebP lightmaps, 512x256 probes):
