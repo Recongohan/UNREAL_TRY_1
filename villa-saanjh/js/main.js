@@ -28,7 +28,8 @@ addEventListener('unhandledrejection', (e) => errors.push(String(e.reason)));
 // ---- renderer ---------------------------------------------------------------------
 const canvas = document.getElementById('gl');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-const DPR = Math.min(devicePixelRatio || 1, 2);
+// 1.5 keeps edges crisp on retina screens at under 60% of the pixels of 2x: the walk stays at frame rate
+const DPR = Math.min(devicePixelRatio || 1, 1.5);
 renderer.setPixelRatio(DPR);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = params.get('tone') === 'aces' ? THREE.ACESFilmicToneMapping : THREE.AgXToneMapping; // AgX matches Blender's view transform
@@ -363,7 +364,7 @@ const T = (t) => t / LENGTH; // story time to scroll progress
 caption('#cap-lift', T(0.1), T(0.3));
 caption('#cap-entry', T(0.54), T(0.68));
 caption('#cap-foyer', T(0.92), T(1.08));
-caption('#cap-dining', T(1.4), T(1.52));
+caption('#cap-dining', T(1.37), T(1.49));
 caption('#cap-pool', T(1.64), T(1.78));
 caption('#cap-gallery', T(1.94), T(2.12));
 caption('#cap-master', T(2.42), T(2.6));
@@ -380,6 +381,24 @@ function tick() {
     drawn = s;
     draw(s);
   }
+}
+
+// Compile every shader and upload every texture before the page opens, so no room
+// stalls the scroll (or shows up untextured) the first time it comes into view.
+async function warmUp() {
+  const seen = new Set();
+  scene.traverse((o) => {
+    const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
+    for (const m of mats) for (const v of Object.values(m)) if (v && v.isTexture && !seen.has(v)) {
+      seen.add(v);
+      renderer.initTexture(v);
+    }
+  });
+  for (const env of Object.values(baked?.envs || {})) renderer.initTexture(env);
+  await renderer.compileAsync(scene, camera);
+  // one frame from each room, so their programs are bound and their buffers uploaded too
+  for (const s of [0.2, 0.35, 0.5, 0.62, 0.75, 0.92]) draw(s);
+  draw(0);
 }
 
 async function boot() {
@@ -399,6 +418,7 @@ async function boot() {
   }
   layout();
   draw(0);
+  if (!CAPTURE) await warmUp();
 
   if (CAPTURE) {
     window.__frame = (s) =>
@@ -407,15 +427,40 @@ async function boot() {
         draw(proxy.s);
         requestAnimationFrame(() => requestAnimationFrame(() => res(true)));
       });
+    // clearance check for tools/clearance.mjs: the nearest surface in view, and around the camera
+    const names = new Map(Object.entries(parts).map(([k, m]) => [m, k]));
+    const ray = new THREE.Raycaster();
+    const targets = Object.values(parts);
+    window.__clear = (s) => {
+      tl.progress(s);
+      draw(proxy.s);
+      let best = { d: Infinity };
+      const probe = (dir, kind) => {
+        ray.set(camera.position, dir);
+        ray.far = 3;
+        const hit = ray.intersectObjects(targets, false)[0];
+        if (hit && hit.distance < best.d) best = { d: hit.distance, key: names.get(hit.object), kind, at: hit.point.toArray().map((v) => +v.toFixed(2)) };
+      };
+      for (let i = 0; i <= 8; i++) for (let j = 0; j <= 4; j++) {
+        const v = new THREE.Vector3((i / 4 - 1), (j / 2 - 1), 0.5).unproject(camera).sub(camera.position).normalize();
+        probe(v, 'view');
+      }
+      for (let k = 0; k < 12; k++) probe(new THREE.Vector3(Math.cos((k / 12) * Math.PI * 2), 0, Math.sin((k / 12) * Math.PI * 2)), 'side');
+      return { s, T: +(proxy.s * LENGTH).toFixed(3), cam: camera.position.toArray().map((v) => +v.toFixed(2)), ...best };
+    };
   } else {
     gsap.registerPlugin(ScrollTrigger);
+    // one layer of smoothing, not two: Lenis eases the wheel, and the camera follows the
+    // scroll position exactly (scrub: true). Lenis leaves touch scrolling native, so on
+    // touch screens a short scrub does the easing instead.
+    const touch = matchMedia('(pointer: coarse)').matches;
     if (!REDUCED) {
-      const lenis = new Lenis({ lerp: 0.085, wheelMultiplier: 0.85 });
+      const lenis = new Lenis({ lerp: 0.1, wheelMultiplier: 1, smoothWheel: true });
       lenis.on('scroll', ScrollTrigger.update);
       gsap.ticker.add((t) => lenis.raf(t * 1000));
       gsap.ticker.lagSmoothing(0);
     }
-    ScrollTrigger.create({ trigger: '#track', start: 'top top', end: 'bottom bottom', scrub: REDUCED ? true : 0.8, animation: tl });
+    ScrollTrigger.create({ trigger: '#track', start: 'top top', end: 'bottom bottom', scrub: REDUCED || !touch ? true : 0.5, animation: tl });
     gsap.ticker.add(tick);
     if (!REDUCED) {
       gsap.from('#hero h1 .l > span', { yPercent: 108, duration: 1.3, ease: 'expo.out', stagger: 0.12, delay: 0.2 });

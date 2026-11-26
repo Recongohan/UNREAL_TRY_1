@@ -399,7 +399,8 @@ export function buildHouse() {
     kit.geo(a.mat, archFill(a.a0, a.a1, a.spring, a.top, a.along, a.t0, a.t1), { zone: zoneAt, angle: 20 });
     if (a.glass) {
       const mid = (a.t0 + a.t1) / 2;
-      const pane = archPane(a.a0, a.a1, a.y0, a.spring, a.along, mid);
+      // a fanlight is glass only in the head: the doorway under it stays open
+      const pane = archPane(a.a0, a.a1, a.glass === 'fan' ? a.spring : a.y0, a.spring, a.along, mid);
       kit.geo('glass', pane, { zone: zoneAt, edges: false });
       if (a.glass === 'dark') kit.geo('night', archPane(a.a0, a.a1, a.y0, a.spring, a.along, a.along === 'n' ? mid - 0.08 : mid + 0.08), { zone: zoneAt, edges: false });
       // black steel glazing bars: a grid below the spring, rays in the head
@@ -737,7 +738,7 @@ export function buildHouse() {
   }
   for (const [hx, dir] of [[13.35, 1], [15.15, -1]]) kit.box('teak', hx - (dir > 0 ? 0 : 0.05), 14.75, hx + (dir > 0 ? 0.05 : 0), 15.6, 0, 2.4, { zone: D });
   // two palms in the corners, by the doors
-  pottedPalm(kit, 12.95, 13.2, { zone: D, seed: 21, h: 2.0 });
+  pottedPalm(kit, 12.95, 13.2, { zone: D, seed: 21, h: 1.45 }); // kept short: the walk back in from the terrace passes it
 
 
   // ---- the master bedroom -----------------------------------------------------------------
@@ -921,7 +922,8 @@ export function buildHouse() {
   // planting on the terrace, and lanterns on the house wall
   palm(kit, 0.9, 22.7, 0, 6.2, { zone: PZ, seed: 41, len: 2.8 });
   palm(kit, 15.0, 22.6, 0, 6.8, { zone: PZ, seed: 43, len: 3.0 });
-  for (const [px, pn, sd] of [[1.0, 15.7, 45], [11.2, 15.7, 46], [2.4, 22.9, 47], [13.6, 22.9, 48]]) pottedPalm(kit, px, pn, { zone: PZ, seed: sd, h: 1.8, pot: 'clay' });
+  // the one by the dining doors is kept short, so it frames the pool instead of covering it
+  for (const [px, pn, sd] of [[1.0, 15.7, 45], [11.2, 15.7, 46], [2.4, 22.9, 47], [13.6, 22.9, 48]]) pottedPalm(kit, px, pn, { zone: PZ, seed: sd, h: sd === 46 ? 1.35 : 1.8, pot: 'clay' });
   for (const lx of [13.25, 15.25, 17.25]) {
     lantern(kit, lx, 2.35, 15.22, { zone: PZ, scale: 0.85 });
     kit.box('gold', lx - 0.02, 15.0, lx + 0.02, 15.22, 2.2, 2.24, { zone: PZ, edges: false });

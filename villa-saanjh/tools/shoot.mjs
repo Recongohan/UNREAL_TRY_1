@@ -2,6 +2,7 @@
 //
 //   node tools/shoot.mjs stills OUT_DIR [s1 s2 ...]     one PNG per position
 //   node tools/shoot.mjs video OUT.mp4 [seconds] [fps]  a full scroll, frame by frame
+//   node tools/shoot.mjs clear [N]                       where the camera comes too close to a surface
 //   node tools/shoot.mjs export OUT.json                 geometry and lights for tools/bake.py (use Q=nobake)
 //
 // Options through the environment: W, H (viewport), DPR.
@@ -10,7 +11,7 @@
 
 import { createRequire } from 'module';
 import { createServer } from 'http';
-import { readFile, mkdir, rm } from 'fs/promises';
+import { readFile, writeFile, mkdir, rm } from 'fs/promises';
 import { extname, join, resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { execFileSync } from 'child_process';
@@ -49,13 +50,22 @@ await page.goto(url);
 await page.waitForFunction(() => window.__ready || (window.__errors && window.__errors.length), null, { timeout: 240000 });
 const errs = await page.evaluate(() => window.__errors);
 if (errs.length) console.log('errors:', errs);
+if (process.env.CSS) await page.addStyleTag({ content: process.env.CSS });
 
 if (mode === 'export') {
   // the geometry and lights, for tools/bake.py
   const data = await page.evaluate(() => JSON.stringify(window.__bakeData()));
-  const { writeFile } = await import('fs/promises');
   await writeFile(out, data);
   console.log('wrote', out, (data.length / 1e6).toFixed(1), 'MB');
+} else if (mode === 'clear') {
+  // walk the whole page and report where the camera comes too close to anything
+  const N = +(out || 400), rows = [];
+  for (let i = 0; i <= N; i++) {
+    const r = await page.evaluate((s) => window.__clear(s), (process.env.FROM ? +process.env.FROM : 0) + (i / N) * ((process.env.TO ? +process.env.TO : 1) - (process.env.FROM ? +process.env.FROM : 0)));
+    rows.push(r);
+    if ((r.kind === 'view' && r.d < 0.55) || (r.kind === 'side' && r.d < 0.3)) console.log(JSON.stringify(r));
+  }
+  await writeFile('build/clearance.json', JSON.stringify(rows));
 } else if (mode === 'stills') {
   await mkdir(out, { recursive: true });
   const list = rest.length ? rest.map(Number) : [0, 0.12, 0.25, 0.4, 0.5, 0.56, 0.66, 0.76, 0.86, 1];
@@ -64,6 +74,7 @@ if (mode === 'export') {
     await page.evaluate((s) => window.__frame(s), s);
     await page.screenshot({ path: join(out, `s_${s.toFixed(3)}.png`) });
     const st = await page.evaluate(() => window.__state());
+    if (process.env.DOM) console.log(await page.evaluate(() => [...document.querySelectorAll('body *')].filter((e) => { const c = getComputedStyle(e); const r = e.getBoundingClientRect(); return c.visibility !== 'hidden' && +c.opacity > 0 && c.backgroundColor !== 'rgba(0, 0, 0, 0)' && r.width > 0; }).map((e) => `${e.tagName}#${e.id}.${e.className} ${JSON.stringify(e.getBoundingClientRect().toJSON())}`).join('\n')));
     console.log(s.toFixed(3), `${Date.now() - t} ms`, `calls ${st.calls}`, `tris ${st.tris}`, st.errors.length ? st.errors : '');
   }
 } else {

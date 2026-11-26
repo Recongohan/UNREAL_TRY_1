@@ -117,9 +117,10 @@ export function makeRig(aspect) {
 
   // 06 and 07: to the doors, then round the table and into the gallery
   // out through the open door onto the terrace, back in, down the west side and through the arch
-  const Q = [[15.25, 8.75], [16.55, 9.6], [16.85, 11.6], [16.1, 13.6], [14.3, 14.2], [14.2, 15.6], [14.05, 16.0], [14.2, 15.5], [14.15, 14.1], [13.65, 12.6], [13.6, 10.6], [13.8, 9.0], [14.45, 7.95], [14.4, 6.85], [14.15, 6.4]];
-  const along6 = glide([[1.45, 0], [1.5, 0.04], [1.62, 0.36], [1.68, 0.41], [1.76, 0.43], [1.84, 0.62], [1.94, 0.82], [2.02, 0.95], [2.1, 1]]);
-  const yaw6 = glide([[1.45, 0], [1.52, -8], [1.58, 15], [1.63, 35], [1.7, 52], [1.76, 60], [1.81, 150], [1.87, 178], [1.93, 172], [1.98, 130], [2.03, 92], [2.1, 80]]);
+  const Q = [[15.25, 8.75], [16.55, 9.6], [16.85, 11.6], [15.0, 13.8], [14.3, 14.25], [14.25, 15.75], [14.2, 16.45], [14.25, 15.65], [14.2, 14.1], [13.95, 12.5], [13.6, 10.6], [13.8, 9.0], [14.45, 7.95], [14.4, 6.85], [14.15, 6.4]];
+  // out through the middle of the doors, a long look at the pool, the whole turn made standing on the terrace, then straight back in
+  const along6 = glide([[1.45, 0], [1.5, 0.04], [1.62, 0.36], [1.68, 0.41], [1.74, 0.43], [1.82, 0.445], [1.88, 0.62], [1.95, 0.82], [2.03, 0.95], [2.1, 1]]);
+  const yaw6 = glide([[1.45, 0], [1.52, 22], [1.57, 28], [1.61, 6], [1.65, 22], [1.69, 45], [1.74, 58], [1.79, 120], [1.83, 176], [1.88, 182], [1.93, 184], [1.98, 145], [2.03, 96], [2.1, 80]]);
   const pitch6 = glide([[1.45, -1.5], [1.6, -5], [1.72, -10], [1.8, -3], [2.1, 1]]);
   const curve = (pts, u) => {
     const n = pts.length - 1, f = Math.min(n - 1e-6, u * n), i = Math.floor(f), t = f - i;
@@ -131,7 +132,7 @@ export function makeRig(aspect) {
   // 08: down the gallery, right through the bedroom door, past the bed to the north window
   const R8 = [[14.15, 6.4], [12.6, 6.15], [10.6, 6.25], [9.55, 7.15], [9.05, 8.35], [8.55, 9.4], [7.75, 10.55], [6.95, 11.55], [6.45, 12.2], [6.35, 12.45]];
   const along8 = glide([[2.1, 0], [2.16, 0.08], [2.28, 0.36], [2.36, 0.48], [2.44, 0.55], [2.6, 0.84], [2.7, 0.97], [2.75, 1]]);
-  const yaw8 = glide([[2.1, 80], [2.17, 84], [2.24, 60], [2.31, 30], [2.37, 70], [2.45, 98], [2.55, 52], [2.64, 12], [2.75, 4]]);
+  const yaw8 = glide([[2.1, 80], [2.17, 68], [2.24, 40], [2.31, 27], [2.37, 70], [2.45, 98], [2.55, 52], [2.64, 12], [2.75, 4]]);
   const pitch8 = glide([[2.1, 1], [2.3, 0], [2.44, -7], [2.56, -2], [2.75, 1]]);
 
   function at(sIn) {
@@ -140,12 +141,12 @@ export function makeRig(aspect) {
     if (s > STOPS.gallery) {
       const [x, n] = curve(R8, along8(s));
       Object.assign(o, { fov: fovWalk, x, y: EYE, z: -n, yaw: yaw8(s) * deg, pitch: pitch8(s) * deg, dist: 9, door: 1, entry: 1, foyer: 1, floor: 0, dining: 1, pool: 1, gallery: 1 });
-      o.master = clamp01((s - 2.3) / 0.16);
+      o.master = clamp01((s - 2.15) / 0.15); // done as you reach the bedroom door
     } else if (s > STOPS.dining) {
       const [x, n] = curve(Q, along6(s));
       Object.assign(o, { fov: fovWalk, x, y: EYE, z: -n, yaw: yaw6(s) * deg, pitch: pitch6(s) * deg, dist: 9, door: 1, entry: 1, foyer: 1, floor: 0, dining: 1 });
-      o.pool = clamp01((s - 1.55) / 0.17);
-      o.gallery = clamp01((s - 1.93) / 0.13);
+      o.pool = clamp01((s - 1.5) / 0.12); // done as you reach the French doors
+      o.gallery = clamp01((s - 1.8) / 0.14); // done as you reach the arch
     } else if (s > STOPS.foyer) {
       const [x, n] = spline(along(s));
       o.fov = fovWalk;
@@ -159,7 +160,7 @@ export function makeRig(aspect) {
       o.entry = 1;
       o.foyer = 1;
       o.floor = 0;
-      o.dining = clamp01((s - 1.2) / 0.2);
+      o.dining = clamp01((s - 1.07) / 0.18); // done as you step through the arch
     } else if (s <= s3) {
       const e = elev(s) * deg, y = yaw(s) * deg;
       const th = Math.exp(lens(s));
@@ -174,7 +175,7 @@ export function makeRig(aspect) {
       o.z = -tn(s) - fz * dist;
       o.dist = dist;
       o.door = 0;
-      o.entry = clamp01((s - 0.47) / (0.6 - 0.47));
+      o.entry = clamp01((s - 0.44) / (0.56 - 0.44));
       o.foyer = 0;
     } else {
       const x = walkX(s);
@@ -187,8 +188,8 @@ export function makeRig(aspect) {
       o.pitch = (-1.2 + 1.2 * smooth(clamp01((s - s3) / 0.06)) + 8 * smooth(clamp01((24.2 - x) / 1.2))) * deg;
       o.dist = 9;
       o.door = smooth(clamp01((31.2 - x) / 4.6));
-      o.entry = clamp01((s - 0.47) / (0.6 - 0.47));
-      o.foyer = clamp01((25.0 - x) / (25.0 - 23.1));
+      o.entry = clamp01((s - 0.44) / (0.56 - 0.44));
+      o.foyer = clamp01((27.2 - x) / (27.2 - 24.3)); // done on the threshold
       o.floor = floorAt(x);
     }
     // keep depth precise: from far above the whole house is a thin slab
